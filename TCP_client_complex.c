@@ -224,7 +224,6 @@ int main(int argc, char *argv[])
 				an_decoder_increment(&an_decoder, bytes_received);
 
 				/* decode all the packets in the buffer */
-				// when would we have more than one packet ever waiting to be decoded?
 				while((an_packet = an_packet_decode_dynamic(&an_decoder)) != NULL)
 				{
 					if(an_packet->id == packet_id_subsonus_system_state) /* system state packet */

@@ -39,16 +39,10 @@
 #define M_PI (3.14159265358979323846)
 #endif
 
-#ifdef _WIN32
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <errno.h>
-#endif
 
 #include "./lib/an_packet_protocol.h"
 #include "./lib/subsonus_packets.h"
@@ -122,21 +116,8 @@ int main(int argc, char *argv[])
 	hostname = argv[1];
 	int port = atoi(argv[2]);
 
-#ifdef _WIN32
-	WSADATA wsaData;
-	int iResult;
-	iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-	if (iResult != 0)
-	{
-		printf("WSAStartup failed: %d\n", iResult);
-		return 1;
-	}
-	// Open TCP socket
-	SOCKET tcp_socket;
-#else
 	// Open TCP socket
 	int tcp_socket;
-#endif
 
 	struct hostent *server;
 	tcp_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -154,6 +135,7 @@ int main(int argc, char *argv[])
 	// is to bind to a port and IP address, and just listen to 
 	// that port (i.e., behave like an actual server).
 
+	// CONFIGURE SERVER SETTINGS FOR CLIENT TO CONNECT
 	// Find the address of the host
 	server = gethostbyname(argv[1]);
 	if(server == NULL)
@@ -167,9 +149,10 @@ int main(int argc, char *argv[])
 	serveraddr.sin_family = AF_INET;
 	memcpy((char *) &serveraddr.sin_addr.s_addr, (char *) server->h_addr_list[0], server->h_length);
 	serveraddr.sin_port = htons(port);
+	// END SERVER CONFIGURE
 
 	// Connect to the server
-	if(connect(tcp_socket, (const sockaddr*)&serveraddr, sizeof(serveraddr)) < 0)
+	if(connect(tcp_socket, (const struct sockaddr*)&serveraddr, sizeof(serveraddr)) < 0)
 	{
 		printf("Could not connect to server. Error thrown: %d\n", errno);
 	} 
@@ -227,11 +210,7 @@ int main(int argc, char *argv[])
 		if(FD_ISSET(tcp_socket, &readfds))
 		{
 
-#ifdef _WIN32
-			bytes_received = recv(tcp_socket,an_decoder_pointer(&an_decoder), an_decoder_size(&an_decoder),0);
-#else
 			bytes_received = recv(tcp_socket, an_decoder_pointer(&an_decoder), an_decoder_size(&an_decoder), MSG_DONTWAIT);
-#endif
 			printf("Received %d new bytes from connection, decoding...", bytes_received);
 			if(bytes_received > 0)
 			{

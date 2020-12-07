@@ -1,4 +1,11 @@
 # basically ignore everything that's not a source or header file
+!*.*
 !*.h
 !*.c
 .vs
+
+# ignore the compiled binary. 
+TCP_client_simple
+TCP_server_complex
+TCP_server_simple
+TCP_client_complex

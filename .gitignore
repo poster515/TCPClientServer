@@ -1,0 +1,4 @@
+# basically ignore everything that's not a source or header file
+!*.h
+!*.c
+.vs

@@ -101,62 +101,7 @@ void set_network_options()
 	an_packet_free(&an_packet);
 }
 
-int main(int argc, char *argv[])
-{
-
-	if(argc != 3)
-	{
-		printf("Usage - program ipaddress/hostname port \nExample - packet_example.exe an-subsonus-1.local 16718\nExample - packet_example.exe 192.168.2.20 16718\n");
-		exit(EXIT_FAILURE);
-	}
-
-	struct sockaddr_in serveraddr;
-	unsigned int bytes_received = 0;
-	char *hostname;
-	hostname = argv[1];
-	int port = atoi(argv[2]);
-
-	// Open TCP socket
-	int tcp_socket;
-
-	struct hostent *server;
-	tcp_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if(tcp_socket < 0)
-	{
-		printf("Could not open TCP socket\n");
-		exit(EXIT_FAILURE);
-	}
-
-	// ok so it looks like this code sets a server address and
-	// attemps to open and maintain a socket with that server,
-	// which is what I'd expect more from a client-side code.
-
-	// I think this is contrary to what we actually want, which
-	// is to bind to a port and IP address, and just listen to 
-	// that port (i.e., behave like an actual server).
-
-	// CONFIGURE SERVER SETTINGS FOR CLIENT TO CONNECT
-	// Find the address of the host
-	server = gethostbyname(argv[1]);
-	if(server == NULL)
-	{
-		printf("Could not find host %s\n", hostname);
-		exit(EXIT_FAILURE);
-	}
-	
-	// Set the server's address
-	memset((char *) &serveraddr, 0, sizeof(serveraddr));
-	serveraddr.sin_family = AF_INET;
-	memcpy((char *) &serveraddr.sin_addr.s_addr, (char *) server->h_addr_list[0], server->h_length);
-	serveraddr.sin_port = htons(port);
-	// END SERVER CONFIGURE
-
-	// Connect to the server
-	if(connect(tcp_socket, (const struct sockaddr*)&serveraddr, sizeof(serveraddr)) < 0)
-	{
-		printf("Could not connect to server. Error thrown: %d\n", errno);
-	} 
-
+void flush_connection(int tcp_socket)
 	// Flush the socket
 	{
 		int flush_length = 0;
@@ -184,34 +129,95 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
+
+int main(int argc, char *argv[])
+{
+
+	if(argc != 3)
+	{
+		printf("Usage - program ipaddress/hostname port \nExample - packet_example.exe an-subsonus-1.local 16718\nExample - packet_example.exe 192.168.2.20 16718\n");
+		exit(EXIT_FAILURE);
+	}
+
+	// socket attributes
+	struct sockaddr_in serveraddr;
+	unsigned int bytes_received = 0;
+	char *hostname;
+	hostname = argv[1];
+	int port = atoi(argv[2]);
+	struct hostent *server;
+
+	// file descriptor attributes
+	struct timeval t;
+	fd_set readfds;
+	t.tv_sec = 1; // was 0
+	t.tv_usec = 0; // was 10000
+
+	// AN packet attributes
+	an_decoder_t an_decoder;
+	an_packet_t *an_packet;
+	an_decoder_initialise(&an_decoder);
+	subsonus_system_state_packet_t system_state_packet;
+	subsonus_track_packet_t subsonus_track_packet;
+
+	// Open TCP socket
+	int tcp_socket;
+	tcp_socket = socket(AF_INET, SOCK_STREAM, 0);
+	if(tcp_socket < 0) {
+		printf("Could not open TCP socket\n");
+		exit(EXIT_FAILURE);
+	} else {
+		printf("Successfully opened TCP socket...\n");
+	}
+
+	// CONFIGURE SERVER SETTINGS FOR CLIENT TO CONNECT
+	server = gethostbyname(argv[1]);
+	if(server == NULL){
+		printf("Could not find host %s\n", hostname);
+		exit(EXIT_FAILURE);
+	} else {
+		printf("Obtaining hostname...\n");
+	}
+	
+	// Set the server's address
+	memset((char *) &serveraddr, 0, sizeof(serveraddr));
+	serveraddr.sin_family = AF_INET;
+	memcpy((char *) &serveraddr.sin_addr.s_addr, (char *) server->h_addr_list[0], server->h_length);
+	serveraddr.sin_port = htons(port);
+	// END SERVER CONFIGURE
+
+	// Connect to the server
+	if(connect(tcp_socket, (const struct sockaddr*)&serveraddr, sizeof(serveraddr)) < 0){
+		printf("Could not connect to server. Error thrown: %d\n", errno);
+	} else {
+		printf("Connected to server...\n");
+	}
+
+	printf("Flushing receive buffer...\n");
+	flush_connection(tcp_socket);
 	
 	// printf("Encode Network Settings Packet: \n");
 	// set_network_options();
 
-	struct timeval t;
-	fd_set readfds;
-	t.tv_sec = 0;
-	t.tv_usec = 10000;
-
-	an_decoder_t an_decoder;
-	an_packet_t *an_packet;
-
-	an_decoder_initialise(&an_decoder);
-
-	subsonus_system_state_packet_t system_state_packet;
-	subsonus_track_packet_t subsonus_track_packet;
+	// clear the list of file descriptors ready to read
+	FD_ZERO(&readfds);
+	// add tcp_socket as a file descriptor ready to read
+	FD_SET(tcp_socket, &readfds);
+	// initialize num of ready descriptors to 0
+	int n_ready = 0;
+	int num_state_packets = 0;
 
 	while(1)
 	{
-		FD_ZERO(&readfds);
-		FD_SET(tcp_socket, &readfds);
-		select(tcp_socket + 1, &readfds, NULL, NULL, &t);
-		printf("Listening to socket connection...");
+		// check all file descriptors and determine if they're ready to read
+		n_ready = select(tcp_socket + 1, &readfds, NULL, NULL, &t);
+		// select(tcp_socket + 1, &readfds, NULL, NULL, NULL);
+		printf("Number of ready connections: %d\n", n_ready);
 		if(FD_ISSET(tcp_socket, &readfds))
 		{
-
+			printf("TCP socket is ready to read...\n");
 			bytes_received = recv(tcp_socket, an_decoder_pointer(&an_decoder), an_decoder_size(&an_decoder), MSG_DONTWAIT);
-			printf("Received %d new bytes from connection, decoding...", bytes_received);
+			printf("Received %d new bytes from connection, decoding...\n", bytes_received);
 			if(bytes_received > 0)
 			{
 				/* increment the decode buffer length by the number of bytes received */
@@ -223,7 +229,7 @@ int main(int argc, char *argv[])
 				{
 					if(an_packet->id == packet_id_subsonus_system_state) /* system state packet */
 					{
-						printf("Packet ID %u of Length %u\n", an_packet->id, an_packet->length);
+						printf("System State Packet ID %u of Length %u\n", an_packet->id, an_packet->length);
 						/* copy all the binary data into the typedef struct for the packet */
 						/* this allows easy access to all the different values             */
 						if(decode_subsonus_system_state_packet(&system_state_packet, an_packet) == 0)
@@ -232,10 +238,11 @@ int main(int argc, char *argv[])
 							printf("\tLatitude = %f, Longitude = %f, Height = %f\n", system_state_packet.latitude * RADIANS_TO_DEGREES, system_state_packet.longitude * RADIANS_TO_DEGREES, system_state_packet.height);
 							printf("\tRoll = %f, Pitch = %f, Heading = %f\n", system_state_packet.orientation[0] * RADIANS_TO_DEGREES, system_state_packet.orientation[1] * RADIANS_TO_DEGREES, system_state_packet.orientation[2] * RADIANS_TO_DEGREES);
 						}
+						printf("Total number of state packets received: %d\n", ++num_state_packets);
 					}
 					else if(an_packet->id == packet_id_subsonus_track) /* subsonus track packet */
 					{
-						printf("Packet ID %u of Length %u\n", an_packet->id, an_packet->length);
+						printf("Remote Track Packet ID %u of Length %u\n", an_packet->id, an_packet->length);
 						/* copy all the binary data into the typedef struct for the packet */
 						/* this allows easy access to all the different values             */
 						if(decode_subsonus_track_packet(&subsonus_track_packet, an_packet) == 0)
@@ -257,11 +264,8 @@ int main(int argc, char *argv[])
 		}
 		else
 		{
-#ifdef _WIN32
-			Sleep(10);
-#else
-			usleep(10000);
-#endif
+
+			usleep(100000);
 		}
 	}
 

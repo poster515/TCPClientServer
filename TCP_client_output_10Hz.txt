@@ -1,0 +1,135 @@
+jpost@jpost-VirtualBox:~/TCPClientServer$ ./TCP_client_complex 192.168.0.3 16719
+Successfully opened TCP socket...
+Obtaining hostname...
+Connected to server...
+Flushing receive buffer...
+Number of ready connections: 1
+TCP socket is ready to read...
+Received 520 new bytes from connection, decoding...
+Packet ID 3 of Length 24
+Packet ID 11 of Length 18
+Packet ID 12 of Length 16
+Packet ID 49 of Length 8
+Packet ID 185 of Length 73
+Packet ID 186 of Length 12
+Packet ID 193 of Length 194
+Packet ID 187 of Length 38
+Packet ID 192 of Length 2
+Packet ID 184 of Length 4
+Packet ID 198 of Length 40
+Packet ID 200 of Length 25
+Number of ready connections: 1
+TCP socket is ready to read...
+Received 514 new bytes from connection, decoding...
+Packet ID 181 of Length 10
+Packet ID 181 of Length 7
+Packet ID 181 of Length 1
+Packet ID 181 of Length 1
+Packet ID 181 of Length 16
+Packet ID 195 of Length 2
+Packet ID 195 of Length 2
+Packet ID 195 of Length 2
+Packet ID 195 of Length 2
+Packet ID 197 of Length 41
+Packet ID 197 of Length 41
+Packet ID 197 of Length 41
+Packet ID 197 of Length 41
+Packet ID 197 of Length 41
+Packet ID 197 of Length 41
+Packet ID 197 of Length 41
+Packet ID 197 of Length 41
+Packet ID 197 of Length 41
+Number of ready connections: 1
+TCP socket is ready to read...
+Received 281 new bytes from connection, decoding...
+Packet ID 197 of Length 41
+Packet ID 196 of Length 78
+Packet ID 196 of Length 78
+Packet ID 196 of Length 82
+Number of ready connections: 1
+TCP socket is ready to read...
+Received 121 new bytes from connection, decoding...
+System State Packet ID 20 of Length 116
+Subsonus System State Packet:
+        Latitude = 42.391521, Longitude = -71.147148, Height = -31.735647
+        Roll = -1.342217, Pitch = 3.283778, Heading = 358.250908
+Total number of state packets received: 1
+Number of ready connections: 1
+TCP socket is ready to read...
+Received 121 new bytes from connection, decoding...
+System State Packet ID 20 of Length 116
+Subsonus System State Packet:
+        Latitude = 42.391521, Longitude = -71.147148, Height = -31.736023
+        Roll = -1.343048, Pitch = 3.282283, Heading = 358.250307
+Total number of state packets received: 2
+Number of ready connections: 1
+TCP socket is ready to read...
+Received 121 new bytes from connection, decoding...
+System State Packet ID 20 of Length 116
+Subsonus System State Packet:
+        Latitude = 42.391521, Longitude = -71.147148, Height = -31.736414
+        Roll = -1.342845, Pitch = 3.281594, Heading = 358.250881
+Total number of state packets received: 3
+Number of ready connections: 1
+TCP socket is ready to read...
+Received 121 new bytes from connection, decoding...
+System State Packet ID 20 of Length 116
+Subsonus System State Packet:
+        Latitude = 42.391521, Longitude = -71.147148, Height = -31.736788
+        Roll = -1.342757, Pitch = 3.279447, Heading = 358.253094
+Total number of state packets received: 4
+Number of ready connections: 1
+TCP socket is ready to read...
+Received 121 new bytes from connection, decoding...
+System State Packet ID 20 of Length 116
+Subsonus System State Packet:
+        Latitude = 42.391521, Longitude = -71.147148, Height = -31.737091
+        Roll = -1.336999, Pitch = 3.280197, Heading = 358.253012
+Total number of state packets received: 5
+Number of ready connections: 1
+TCP socket is ready to read...
+Received 121 new bytes from connection, decoding...
+System State Packet ID 20 of Length 116
+Subsonus System State Packet:
+        Latitude = 42.391521, Longitude = -71.147148, Height = -31.737429
+        Roll = -1.339331, Pitch = 3.275262, Heading = 358.254897
+Total number of state packets received: 6
+Number of ready connections: 1
+TCP socket is ready to read...
+Received 121 new bytes from connection, decoding...
+System State Packet ID 20 of Length 116
+Subsonus System State Packet:
+        Latitude = 42.391521, Longitude = -71.147148, Height = -31.737701
+        Roll = -1.338433, Pitch = 3.273357, Heading = 358.256700
+Total number of state packets received: 7
+Number of ready connections: 1
+TCP socket is ready to read...
+Received 121 new bytes from connection, decoding...
+System State Packet ID 20 of Length 116
+Subsonus System State Packet:
+        Latitude = 42.391521, Longitude = -71.147148, Height = -31.738022
+        Roll = -1.338011, Pitch = 3.271453, Heading = 358.258093
+Total number of state packets received: 8
+Number of ready connections: 1
+TCP socket is ready to read...
+Received 121 new bytes from connection, decoding...
+System State Packet ID 20 of Length 116
+Subsonus System State Packet:
+        Latitude = 42.391521, Longitude = -71.147148, Height = -31.738283
+        Roll = -1.337845, Pitch = 3.271515, Heading = 358.258749
+Total number of state packets received: 9
+Number of ready connections: 1
+TCP socket is ready to read...
+Received 121 new bytes from connection, decoding...
+System State Packet ID 20 of Length 116
+Subsonus System State Packet:
+        Latitude = 42.391521, Longitude = -71.147148, Height = -31.738525
+        Roll = -1.338820, Pitch = 3.270592, Heading = 358.260361
+Total number of state packets received: 10
+Number of ready connections: 0
+Number of ready connections: 0
+Number of ready connections: 0
+Number of ready connections: 0
+Number of ready connections: 0
+Number of ready connections: 0
+Number of ready connections: 0

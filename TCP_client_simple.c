@@ -80,6 +80,10 @@ void func(int sockfd)
 { 
     char buff[AN_DECODE_MAXIMUM_FILL_SIZE]; 
     int n; 
+    struct timeval t;
+	fd_set readfds;
+	t.tv_sec = 0;
+	t.tv_usec = 10000;
     for (;;) { 
         // bzero(buff, sizeof(buff)); 
         // printf("Enter the string : "); 
@@ -90,12 +94,13 @@ void func(int sockfd)
         bzero(buff, sizeof(buff)); 
         n = read(sockfd, buff, sizeof(buff)); 
         printf("Received %d bytes from server.\n", n);
-        decode_an_packet((char *)&buff, n);
-        printf("Data from server: %s", buff); 
+        // decode_an_packet((char *)&buff, n);
+        printf("Data from server: %s\n", buff); 
         if ((strncmp(buff, "exit", 4)) == 0) { 
             printf("Client Exit...\n"); 
             break; 
-        } 
+        }
+        usleep(10000); 
     } 
 } 
   
@@ -138,6 +143,9 @@ int main(int argc, char *argv[])
     servaddr.sin_family = AF_INET; 
     // servaddr.sin_addr.s_addr = inet_addr("127.0.0.1"); 
     memcpy((char *) &servaddr.sin_addr.s_addr, (char *) server_s->h_addr_list[0], server_s->h_length);
+    // equivalent to the following:
+    // memcpy((char *) &servaddr.sin_addr.s_addr, (char *) server_s->h_addr, server_s->h_length);
+    // inet_aton(server_c, &servaddr.sin_addr.s_addr);
     servaddr.sin_port = htons(port); 
   
     // connect the client socket to server socket 

@@ -15,91 +15,68 @@
 #endif
 #define SA struct sockaddr 
 #define RADIANS_TO_DEGREES (180.0/M_PI)
-
-// 
-void decode_an_packet(char * buff, int bytes_received)
-{
-    an_decoder_t an_decoder;
-	an_packet_t *an_packet;
-
-	an_decoder_initialise(&an_decoder);
-    // copy raw data into an_decoder buffer.
-    // if this code ends up working, can simply always use an_decoder. 
-    memcpy(an_decoder_pointer(&an_decoder), buff, an_decoder_size(&an_decoder));
-
-	subsonus_system_state_packet_t system_state_packet;
-	subsonus_track_packet_t subsonus_track_packet;
-
-    if(bytes_received > 0)
-    {
-        /* increment the decode buffer length by the number of bytes received */
-        // not sure this is really necessary but ok. 
-        an_decoder_increment(&an_decoder, bytes_received);
-
-        /* decode all the packets in the buffer */
-        // when would we have more than one packet ever waiting to be decoded?
-        while((an_packet = an_packet_decode_dynamic(&an_decoder)) != NULL)
-        {
-            if(an_packet->id == packet_id_subsonus_system_state) /* system state packet */
-            {
-                printf("Packet ID %u of Length %u\n", an_packet->id, an_packet->length);
-                /* copy all the binary data into the typedef struct for the packet */
-                /* this allows easy access to all the different values             */
-                if(decode_subsonus_system_state_packet(&system_state_packet, an_packet) == 0)
-                {
-                    printf("Subsonus System State Packet:\n");
-                    printf("\tLatitude = %f, Longitude = %f, Height = %f\n", system_state_packet.latitude * RADIANS_TO_DEGREES, system_state_packet.longitude * RADIANS_TO_DEGREES, system_state_packet.height);
-                    printf("\tRoll = %f, Pitch = %f, Heading = %f\n", system_state_packet.orientation[0] * RADIANS_TO_DEGREES, system_state_packet.orientation[1] * RADIANS_TO_DEGREES, system_state_packet.orientation[2] * RADIANS_TO_DEGREES);
-                }
-            }
-            else if(an_packet->id == packet_id_subsonus_track) /* subsonus track packet */
-            {
-                printf("Packet ID %u of Length %u\n", an_packet->id, an_packet->length);
-                /* copy all the binary data into the typedef struct for the packet */
-                /* this allows easy access to all the different values             */
-                if(decode_subsonus_track_packet(&subsonus_track_packet, an_packet) == 0)
-                {
-                    printf("Remote Track Packet:\n");
-                    printf("\tLatitude = %f, Longitude = %f, Height = %f\n", subsonus_track_packet.latitude * RADIANS_TO_DEGREES, subsonus_track_packet.longitude * RADIANS_TO_DEGREES, subsonus_track_packet.height);
-                    printf("\tRange = %f, Azimuth = %f, Elevation = %f\n", subsonus_track_packet.range, subsonus_track_packet.azimuth * RADIANS_TO_DEGREES, subsonus_track_packet.elevation * RADIANS_TO_DEGREES);
-                }
-            }
-            else
-            {
-                printf("Packet ID %u of Length %u\n", an_packet->id, an_packet->length);
-            }
-
-            /* Ensure that you free the an_packet when your done with it or you will leak memory */
-            an_packet_free(&an_packet);
-        }
-    }
-}
+#define MAX 255
 
 // User enters a message to send to server. 
 void func(int sockfd) 
 { 
-    char buff[AN_DECODE_MAXIMUM_FILL_SIZE]; 
-    int n; 
+    // requires that sockfd has already made a remote connection 
+    char buff[MAX]; 
+    int n = 0; // index for buff 
+    int n_bytes = 0; //number of bytes read and written 
+    
+    // declare some file descriptor sets for reading and writing
+	fd_set readfds, writefds;
+    // declare timeval for handling timeout
     struct timeval t;
-	fd_set readfds;
 	t.tv_sec = 0;
 	t.tv_usec = 10000;
-    for (;;) { 
-        // bzero(buff, sizeof(buff)); 
-        // printf("Enter the string : "); 
-        // n = 0; 
-        // while ((buff[n++] = getchar()) != '\n') 
-        //     ; 
-        // write(sockfd, buff, sizeof(buff)); 
+    // number of ready connections
+    int n_ready = 0;
+    while(1)
+	{
+        // grab some data to send. 
+        // will need to update this to send Inunktun data control packets.
         bzero(buff, sizeof(buff)); 
-        n = read(sockfd, buff, sizeof(buff)); 
-        printf("Received %d bytes from server.\n", n);
-        // decode_an_packet((char *)&buff, n);
-        printf("Data from server: %s\n", buff); 
-        if ((strncmp(buff, "exit", 4)) == 0) { 
-            printf("Client Exit...\n"); 
-            break; 
+        printf("Enter the string : "); 
+        n_bytes = 0;
+        n = 0; 
+        while ((buff[n++] = getchar()) != '\n');
+
+        // now determine if we can write data to server.
+		// clear the list of file descriptors ready to write
+		FD_ZERO(&writefds);
+		// add tcp_socket as a file descriptor ready to write
+		FD_SET(sockfd, &writefds);
+		// check all file descriptors and determine if they're ready to write
+		n_ready = select(sockfd + 1, NULL, &writefds, NULL, &t);
+        
+        printf("Number of ready connections: %d\n", n_ready);
+		if(FD_ISSET(sockfd, &writefds))
+		{
+            n_bytes = write(sockfd, buff, sizeof(buff)); 
+            printf("Wrote %d bytes to server.\n", n_bytes);
         }
+        usleep(10000); 
+
+        // now check if we can read anything from the server.
+        bzero(buff, sizeof(buff)); 
+        n = 0;
+		FD_ZERO(&readfds);
+		FD_SET(sockfd, &readfds);
+		n_ready = select(sockfd + 1, &readfds, NULL, NULL, &t);
+        printf("Number of ready connections: %d\n", n_ready);
+		if(FD_ISSET(sockfd, &readfds))
+		{
+            n_bytes = read(sockfd, buff, sizeof(buff));
+            printf("Received %d bytes from server.\n", n_bytes);
+        }
+
+        printf("Data from server: %s\n", buff); 
+        // if ((strncmp(buff, "exit", 4)) == 0) { 
+        //     printf("Client Exit...\n"); 
+        //     break; 
+        // }
         usleep(10000); 
     } 
 } 

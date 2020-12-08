@@ -199,16 +199,16 @@ int main(int argc, char *argv[])
 	// printf("Encode Network Settings Packet: \n");
 	// set_network_options();
 
-	// clear the list of file descriptors ready to read
-	FD_ZERO(&readfds);
-	// add tcp_socket as a file descriptor ready to read
-	FD_SET(tcp_socket, &readfds);
 	// initialize num of ready descriptors to 0
 	int n_ready = 0;
 	int num_state_packets = 0;
 
 	while(1)
 	{
+		// clear the list of file descriptors ready to read
+		FD_ZERO(&readfds);
+		// add tcp_socket as a file descriptor ready to read
+		FD_SET(tcp_socket, &readfds);
 		// check all file descriptors and determine if they're ready to read
 		n_ready = select(tcp_socket + 1, &readfds, NULL, NULL, &t);
 		// select(tcp_socket + 1, &readfds, NULL, NULL, NULL);

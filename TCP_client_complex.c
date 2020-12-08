@@ -212,12 +212,12 @@ int main(int argc, char *argv[])
 		// check all file descriptors and determine if they're ready to read
 		n_ready = select(tcp_socket + 1, &readfds, NULL, NULL, &t);
 		// select(tcp_socket + 1, &readfds, NULL, NULL, NULL);
-		printf("Number of ready connections: %d\n", n_ready);
+		// printf("Number of ready connections: %d\n", n_ready);
 		if(FD_ISSET(tcp_socket, &readfds))
 		{
-			printf("TCP socket is ready to read...\n");
+			// printf("TCP socket is ready to read...\n");
 			bytes_received = recv(tcp_socket, an_decoder_pointer(&an_decoder), an_decoder_size(&an_decoder), MSG_DONTWAIT);
-			printf("Received %d new bytes from connection, decoding...\n", bytes_received);
+			// printf("Received %d new bytes from connection, decoding...\n", bytes_received);
 			if(bytes_received > 0)
 			{
 				/* increment the decode buffer length by the number of bytes received */
@@ -226,20 +226,21 @@ int main(int argc, char *argv[])
 				/* decode all the packets in the buffer */
 				while((an_packet = an_packet_decode_dynamic(&an_decoder)) != NULL)
 				{
-					if(an_packet->id == packet_id_subsonus_system_state) /* system state packet */
-					{
-						printf("System State Packet ID %u of Length %u\n", an_packet->id, an_packet->length);
-						/* copy all the binary data into the typedef struct for the packet */
-						/* this allows easy access to all the different values             */
-						if(decode_subsonus_system_state_packet(&system_state_packet, an_packet) == 0)
-						{
-							printf("Subsonus System State Packet:\n");
-							printf("\tLatitude = %f, Longitude = %f, Height = %f\n", system_state_packet.latitude * RADIANS_TO_DEGREES, system_state_packet.longitude * RADIANS_TO_DEGREES, system_state_packet.height);
-							printf("\tRoll = %f, Pitch = %f, Heading = %f\n", system_state_packet.orientation[0] * RADIANS_TO_DEGREES, system_state_packet.orientation[1] * RADIANS_TO_DEGREES, system_state_packet.orientation[2] * RADIANS_TO_DEGREES);
-						}
-						printf("Total number of state packets received: %d\n", ++num_state_packets);
-					}
-					else if(an_packet->id == packet_id_subsonus_track) /* subsonus track packet */
+					// if(an_packet->id == packet_id_subsonus_system_state) /* system state packet */
+					// {
+					// 	printf("System State Packet ID %u of Length %u\n", an_packet->id, an_packet->length);
+					// 	/* copy all the binary data into the typedef struct for the packet */
+					// 	/* this allows easy access to all the different values             */
+					// 	if(decode_subsonus_system_state_packet(&system_state_packet, an_packet) == 0)
+					// 	{
+					// 		printf("Subsonus System State Packet:\n");
+					// 		printf("\tLatitude = %f, Longitude = %f, Height = %f\n", system_state_packet.latitude * RADIANS_TO_DEGREES, system_state_packet.longitude * RADIANS_TO_DEGREES, system_state_packet.height);
+					// 		printf("\tRoll = %f, Pitch = %f, Heading = %f\n", system_state_packet.orientation[0] * RADIANS_TO_DEGREES, system_state_packet.orientation[1] * RADIANS_TO_DEGREES, system_state_packet.orientation[2] * RADIANS_TO_DEGREES);
+					// 	}
+					// 	printf("Total number of state packets received: %d\n", ++num_state_packets);
+					// }
+					// else 
+					if(an_packet->id == packet_id_subsonus_track) /* subsonus track packet */
 					{
 						printf("Remote Track Packet ID %u of Length %u\n", an_packet->id, an_packet->length);
 						/* copy all the binary data into the typedef struct for the packet */
@@ -248,13 +249,15 @@ int main(int argc, char *argv[])
 						{
 							printf("Remote Track Packet:\n");
 							printf("\tLatitude = %f, Longitude = %f, Height = %f\n", subsonus_track_packet.latitude * RADIANS_TO_DEGREES, subsonus_track_packet.longitude * RADIANS_TO_DEGREES, subsonus_track_packet.height);
-							printf("\tRange = %f, Azimuth = %f, Elevation = %f\n", subsonus_track_packet.range, subsonus_track_packet.azimuth * RADIANS_TO_DEGREES, subsonus_track_packet.elevation * RADIANS_TO_DEGREES);
+							printf("\tRange = %f m, Azimuth = %f deg, Elevation = %f deg\n", subsonus_track_packet.range, subsonus_track_packet.azimuth * RADIANS_TO_DEGREES, subsonus_track_packet.elevation * RADIANS_TO_DEGREES);
+							printf("\tX raw = %f m, Y raw = %f m, Z raw = %f m\n", subsonus_track_packet.raw_position[0], subsonus_track_packet.raw_position[1], subsonus_track_packet.raw_position[2]);
+							printf("\tX corrected = %f m, Y corrected = %f m, Z corrected = %f m\n", subsonus_track_packet.corrected_position[0], subsonus_track_packet.corrected_position[1], subsonus_track_packet.corrected_position[2]);
 						}
 					}
-					else
-					{
-						printf("Packet ID %u of Length %u\n", an_packet->id, an_packet->length);
-					}
+					// else
+					// {
+					// 	printf("Packet ID %u of Length %u\n", an_packet->id, an_packet->length);
+					// }
 
 					/* Ensure that you free the an_packet when your done with it or you will leak memory */
 					an_packet_free(&an_packet);

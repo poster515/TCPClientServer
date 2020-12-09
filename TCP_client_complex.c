@@ -43,62 +43,46 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <errno.h>
+#include <signal.h>
+#include <stdatomic.h>
+#include <thread.h>
 
 #include "./lib/an_packet_protocol.h"
 #include "./lib/subsonus_packets.h"
 
 #define RADIANS_TO_DEGREES (180.0/M_PI)
 
-uint32_t parseIPV4string(char* ipAddress)
-{
-	unsigned int ipbytes[4];
-	sscanf(ipAddress, "%uhh.%uhh.%uhh.%uhh", &ipbytes[3], &ipbytes[2], &ipbytes[1], &ipbytes[0]);
-	return ipbytes[0] | ipbytes[1] << 8 | ipbytes[2] << 16 | ipbytes[3] << 24;
-}
+typedef struct {
+	float raw_position[3];
+	float corrected_position[3];
+	float ned_position[3];
+} data_entry;
 
-int an_packet_transmit(an_packet_t *an_packet)
+// define the global array to save data to. needs to be atomic.
+
+
+int an_packet_transmit(an_packet_t *an_packet, int * sockfd)
 {
+	// set the header fields and calculate CRCs
 	an_packet_encode(an_packet);
-	// TODO: complete the code below to actually transmit packet:
-	// write(sockfd, buff, sizeof(buff)); 
-	return 0; //SendBuf(an_packet_pointer(an_packet), an_packet_size(an_packet));
-}
-
-/*
- * This is an example of sending a configuration packet to the GNSS Compass.
- *
- * 1. First declare the structure for the packet, in this case filter_options_packet_t.
- * 2. Set all the fields of the packet structure
- * 3. Encode the packet structure into an an_packet_t using the appropriate helper function
- * 4. Send the packet
- * 5. Free the packet
- */
-
-void set_network_options()
-{
-	an_packet_t *an_packet = an_packet_allocate(30, packet_id_network_settings);
-
-	network_settings_packet_t network_settings_packet;
-
-	// initialise the structure by setting all the fields to zero
-	memset(&network_settings_packet, 0, sizeof(network_settings_packet_t));
-
-	network_settings_packet.dhcp_mode_flags.b.dhcp_enabled = 1;
-	network_settings_packet.dhcp_mode_flags.b.automatic_dns = 1;
-	network_settings_packet.dhcp_mode_flags.b.link_mode = link_auto;
-	network_settings_packet.permanent = 1;
-
-	network_settings_packet.static_dns_server = (uint32_t) parseIPV4string((char*)"0.0.0.0");  // usually the network modem: e.g. 192.168.1.1
-	network_settings_packet.static_gateway = (uint32_t) parseIPV4string((char*)"0.0.0.0");     // usually the network modem: e.g. 192.168.1.1
-	network_settings_packet.static_ip_address = (uint32_t) parseIPV4string((char*)"0.0.0.0");  // e.g. 192.168.1.20
-	network_settings_packet.static_netmask = (uint32_t) parseIPV4string((char*)"255.255.255.0");     // e.g. 255.255.255.0
-
-	encode_network_settings_packet(an_packet, &network_settings_packet);
-	an_packet_encode(an_packet);
-
-	an_packet_transmit(an_packet);
-
-	an_packet_free(&an_packet);
+	int n_bytes = 0; // number of bytes written during write operation
+	// declare some file descriptor sets for reading and writing
+	fd_set writefds;
+	// clear the list of file descriptors, and add sockfd as being ready to write
+	FD_ZERO(&writefds);
+	FD_SET(*(sockfd), &writefds);
+	// check all file descriptors and determine if they're ready to write.
+	// NOTE: the following line is a BLOCKING function call. 
+	select(*(sockfd) + 1, NULL, &writefds, NULL, NULL);
+	// TODO: test this code. Not sure if we can just send data like this. 
+	if(FD_ISSET(*(sockfd), &writefds))
+	{
+		n_bytes = write(*(sockfd), &(an_packet->header), AN_PACKET_HEADER_SIZE*sizeof(uint8_t)); 
+		printf("Wrote %d bytes of header data to server.\n", n_bytes);
+		n_bytes = write(*(sockfd), &(an_packet->data), (an_packet->length)*sizeof(uint8_t)); 
+		printf("Wrote %d bytes of packet data to server.\n", n_bytes);
+	}
+	return 0; 
 }
 
 void flush_connection(int tcp_socket)
@@ -130,6 +114,12 @@ void flush_connection(int tcp_socket)
 		}
 	}
 
+void sigintHandler(int signum){
+	printf("\nCaught SIGINT, exiting program...\n");
+	// TODO: write all array data to buffer
+	exit(EXIT_SUCCESS);
+}
+
 int main(int argc, char *argv[])
 {
 
@@ -138,6 +128,7 @@ int main(int argc, char *argv[])
 		printf("Usage - program ipaddress/hostname port \nExample - packet_example.exe an-subsonus-1.local 16718\nExample - packet_example.exe 192.168.2.20 16718\n");
 		exit(EXIT_FAILURE);
 	}
+	signal(SIGINT, sigintHandler);
 
 	// socket attributes
 	struct sockaddr_in serveraddr;
@@ -242,16 +233,18 @@ int main(int argc, char *argv[])
 					// else 
 					if(an_packet->id == packet_id_subsonus_track) /* subsonus track packet */
 					{
-						printf("Remote Track Packet ID %u of Length %u\n", an_packet->id, an_packet->length);
+						//printf("Remote Track Packet ID %u of Length %u\n", an_packet->id, an_packet->length);
 						/* copy all the binary data into the typedef struct for the packet */
 						/* this allows easy access to all the different values             */
 						if(decode_subsonus_track_packet(&subsonus_track_packet, an_packet) == 0)
 						{
+							//fflush(stdout);
 							printf("Remote Track Packet:\n");
 							printf("\tLatitude = %f, Longitude = %f, Height = %f\n", subsonus_track_packet.latitude * RADIANS_TO_DEGREES, subsonus_track_packet.longitude * RADIANS_TO_DEGREES, subsonus_track_packet.height);
 							printf("\tRange = %f m, Azimuth = %f deg, Elevation = %f deg\n", subsonus_track_packet.range, subsonus_track_packet.azimuth * RADIANS_TO_DEGREES, subsonus_track_packet.elevation * RADIANS_TO_DEGREES);
 							printf("\tX raw = %f m, Y raw = %f m, Z raw = %f m\n", subsonus_track_packet.raw_position[0], subsonus_track_packet.raw_position[1], subsonus_track_packet.raw_position[2]);
 							printf("\tX corrected = %f m, Y corrected = %f m, Z corrected = %f m\n", subsonus_track_packet.corrected_position[0], subsonus_track_packet.corrected_position[1], subsonus_track_packet.corrected_position[2]);
+
 						}
 					}
 					// else
@@ -272,4 +265,47 @@ int main(int argc, char *argv[])
 	}
 
 	return EXIT_SUCCESS;
+}
+
+uint32_t parseIPV4string(char* ipAddress)
+{
+	unsigned int ipbytes[4];
+	sscanf(ipAddress, "%uhh.%uhh.%uhh.%uhh", &ipbytes[3], &ipbytes[2], &ipbytes[1], &ipbytes[0]);
+	return ipbytes[0] | ipbytes[1] << 8 | ipbytes[2] << 16 | ipbytes[3] << 24;
+}
+
+/*
+ * This is an example of sending a configuration packet to the GNSS Compass.
+ *
+ * 1. First declare the structure for the packet, in this case filter_options_packet_t.
+ * 2. Set all the fields of the packet structure
+ * 3. Encode the packet structure into an an_packet_t using the appropriate helper function
+ * 4. Send the packet
+ * 5. Free the packet
+ */
+void set_network_options(int * sockfd)
+{
+	an_packet_t *an_packet = an_packet_allocate(30, packet_id_network_settings);
+
+	network_settings_packet_t network_settings_packet;
+
+	// initialise the structure by setting all the fields to zero
+	memset(&network_settings_packet, 0, sizeof(network_settings_packet_t));
+
+	network_settings_packet.dhcp_mode_flags.b.dhcp_enabled = 1;
+	network_settings_packet.dhcp_mode_flags.b.automatic_dns = 1;
+	network_settings_packet.dhcp_mode_flags.b.link_mode = link_auto;
+	network_settings_packet.permanent = 1;
+
+	network_settings_packet.static_dns_server = (uint32_t) parseIPV4string((char*)"0.0.0.0");  // usually the network modem: e.g. 192.168.1.1
+	network_settings_packet.static_gateway = (uint32_t) parseIPV4string((char*)"0.0.0.0");     // usually the network modem: e.g. 192.168.1.1
+	network_settings_packet.static_ip_address = (uint32_t) parseIPV4string((char*)"0.0.0.0");  // e.g. 192.168.1.20
+	network_settings_packet.static_netmask = (uint32_t) parseIPV4string((char*)"255.255.255.0");     // e.g. 255.255.255.0
+
+	encode_network_settings_packet(an_packet, &network_settings_packet);
+	an_packet_encode(an_packet);
+
+	an_packet_transmit(an_packet, sockfd);
+
+	an_packet_free(&an_packet);
 }

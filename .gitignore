@@ -2,6 +2,7 @@
 !*.*
 !*.h
 !*.c
+*.txt
 .vs
 
 # ignore the compiled binary. 

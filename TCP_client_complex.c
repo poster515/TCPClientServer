@@ -57,7 +57,7 @@ void sigintHandler(int signum){
 	printf("\nCaught SIGINT, exiting program...\n");
 	// write flag indicating that we should stop 
 	STOP = true;
-	signal(SIGINT, sigintHandler);
+	//signal(SIGINT, sigintHandler);
 }
 
 int main(int argc, char *argv[])
@@ -136,15 +136,12 @@ int main(int argc, char *argv[])
 	// printf("Encode Network Settings Packet: \n");
 	// set_network_options();
 
-	// initialize num of ready descriptors to 0
-	int n_ready = 0;
-	int num_state_packets = 0;
-
 	while(1)
 	{
 		if (STOP == true) {
 			printf("User has ended program. Exiting...\n");
-			write_output_file(&data_array);
+			//read_all_entries(data_array, data_array_index);
+			write_output_file(data_array, data_array_index);
 			exit(EXIT_SUCCESS);
 		}
 		// clear the list of file descriptors ready to read
@@ -152,9 +149,7 @@ int main(int argc, char *argv[])
 		// add tcp_socket as a file descriptor ready to read
 		FD_SET(tcp_socket, &readfds);
 		// check all file descriptors and determine if they're ready to read
-		n_ready = select(tcp_socket + 1, &readfds, NULL, NULL, &t);
-		// select(tcp_socket + 1, &readfds, NULL, NULL, NULL);
-		// printf("Number of ready connections: %d\n", n_ready);
+		select(tcp_socket + 1, &readfds, NULL, NULL, &t);
 		if(FD_ISSET(tcp_socket, &readfds))
 		{
 			// printf("TCP socket is ready to read...\n");
@@ -189,19 +184,22 @@ int main(int argc, char *argv[])
 						/* this allows easy access to all the different values             */
 						if(decode_subsonus_track_packet(&subsonus_track_packet, an_packet) == 0)
 						{
-							//fflush(stdout);
 							printf("Remote Track Packet:\n");
 							printf("\tLatitude = %f, Longitude = %f, Height = %f\n", subsonus_track_packet.latitude * RADIANS_TO_DEGREES, subsonus_track_packet.longitude * RADIANS_TO_DEGREES, subsonus_track_packet.height);
 							printf("\tRange = %f m, Azimuth = %f deg, Elevation = %f deg\n", subsonus_track_packet.range, subsonus_track_packet.azimuth * RADIANS_TO_DEGREES, subsonus_track_packet.elevation * RADIANS_TO_DEGREES);
 							printf("\tX raw = %f m, Y raw = %f m, Z raw = %f m\n", subsonus_track_packet.raw_position[0], subsonus_track_packet.raw_position[1], subsonus_track_packet.raw_position[2]);
 							printf("\tX corrected = %f m, Y corrected = %f m, Z corrected = %f m\n", subsonus_track_packet.corrected_position[0], subsonus_track_packet.corrected_position[1], subsonus_track_packet.corrected_position[2]);
-
-							if ((subsonus_track_packet.observer_unix_time_seconds - last_recording_seconds) > 0){
-								if (abs(subsonus_track_packet.observer_microseconds - last_recording_microseconds) <= 1){
-									copy_data_entry(&subsonus_track_packet, &data_array, data_array_index);
-									last_recording_seconds = subsonus_track_packet.observer_unix_time_seconds;
-									last_recording_microseconds = subsonus_track_packet.observer_microseconds;
-								}
+							printf("\tDepth: %f\n", subsonus_track_packet.depth);
+							
+							// now save data into array if there is space for it. 
+							if (data_array_index < MAX_DATA_ENTRIES){
+								copy_data_entry(&subsonus_track_packet, &data_array[data_array_index]);
+								last_recording_seconds = subsonus_track_packet.observer_unix_time_seconds;
+								last_recording_microseconds = subsonus_track_packet.observer_microseconds;
+								++data_array_index;
+							} else {
+								printf("Cannot save any more data, saving existing data.\n");
+								STOP = true;
 							}
 						}
 					}

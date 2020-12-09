@@ -44,78 +44,20 @@
 #include <netdb.h>
 #include <errno.h>
 #include <signal.h>
-
-#include "./lib/an_packet_protocol.h"
-#include "./lib/subsonus_packets.h"
+#include <stdbool.h>
+#include "utils.c"
 
 #define RADIANS_TO_DEGREES (180.0/M_PI)
 
-typedef struct {
-	float raw_position[3];
-	float corrected_position[3];
-	float ned_position[3];
-} data_entry;
 
-// define the global array to save data to. needs to be atomic.
-
-
-int an_packet_transmit(an_packet_t *an_packet, int * sockfd)
-{
-	// set the header fields and calculate CRCs
-	an_packet_encode(an_packet);
-	int n_bytes = 0; // number of bytes written during write operation
-	// declare some file descriptor sets for reading and writing
-	fd_set writefds;
-	// clear the list of file descriptors, and add sockfd as being ready to write
-	FD_ZERO(&writefds);
-	FD_SET(*(sockfd), &writefds);
-	// check all file descriptors and determine if they're ready to write.
-	// NOTE: the following line is a BLOCKING function call. 
-	select(*(sockfd) + 1, NULL, &writefds, NULL, NULL);
-	// TODO: test this code. Not sure if we can just send data like this. 
-	if(FD_ISSET(*(sockfd), &writefds))
-	{
-		n_bytes = write(*(sockfd), &(an_packet->header), AN_PACKET_HEADER_SIZE*sizeof(uint8_t)); 
-		printf("Wrote %d bytes of header data to server.\n", n_bytes);
-		n_bytes = write(*(sockfd), &(an_packet->data), (an_packet->length)*sizeof(uint8_t)); 
-		printf("Wrote %d bytes of packet data to server.\n", n_bytes);
-	}
-	return 0; 
-}
-
-void flush_connection(int tcp_socket)
-	// Flush the socket
-	{
-		int flush_length = 0;
-		while(1)
-		{
-			struct timeval t;
-			fd_set readfds;
-			t.tv_sec = 0;
-			t.tv_usec = 50000;
-			unsigned char buf[1024];
-			FD_ZERO(&readfds);
-			FD_SET(tcp_socket, &readfds);
-			select(tcp_socket + 1, &readfds, NULL, NULL, &t);
-			if(FD_ISSET(tcp_socket, &readfds))
-			{
-				flush_length = recv(tcp_socket, buf, sizeof(buf), 0);
-				if(flush_length < 100)
-				{
-					break;
-				}
-			}
-			else
-			{
-				break;
-			}
-		}
-	}
+// flag to denote the user has stopped data collection
+static volatile bool STOP = false;
 
 void sigintHandler(int signum){
 	printf("\nCaught SIGINT, exiting program...\n");
-	// TODO: write all array data to buffer
-	exit(EXIT_SUCCESS);
+	// write flag indicating that we should stop 
+	STOP = true;
+	signal(SIGINT, sigintHandler);
 }
 
 int main(int argc, char *argv[])
@@ -148,6 +90,12 @@ int main(int argc, char *argv[])
 	an_decoder_initialise(&an_decoder);
 	subsonus_system_state_packet_t system_state_packet;
 	subsonus_track_packet_t subsonus_track_packet;
+
+	// data entry array
+	struct data_entry data_array[MAX_DATA_ENTRIES];
+	int data_array_index = 0;
+	uint32_t last_recording_microseconds = 0;
+	uint32_t last_recording_seconds = 0;
 
 	// Open TCP socket
 	int tcp_socket;
@@ -194,6 +142,11 @@ int main(int argc, char *argv[])
 
 	while(1)
 	{
+		if (STOP == true) {
+			printf("User has ended program. Exiting...\n");
+			write_output_file(&data_array);
+			exit(EXIT_SUCCESS);
+		}
 		// clear the list of file descriptors ready to read
 		FD_ZERO(&readfds);
 		// add tcp_socket as a file descriptor ready to read
@@ -243,6 +196,13 @@ int main(int argc, char *argv[])
 							printf("\tX raw = %f m, Y raw = %f m, Z raw = %f m\n", subsonus_track_packet.raw_position[0], subsonus_track_packet.raw_position[1], subsonus_track_packet.raw_position[2]);
 							printf("\tX corrected = %f m, Y corrected = %f m, Z corrected = %f m\n", subsonus_track_packet.corrected_position[0], subsonus_track_packet.corrected_position[1], subsonus_track_packet.corrected_position[2]);
 
+							if ((subsonus_track_packet.observer_unix_time_seconds - last_recording_seconds) > 0){
+								if (abs(subsonus_track_packet.observer_microseconds - last_recording_microseconds) <= 1){
+									copy_data_entry(&subsonus_track_packet, &data_array, data_array_index);
+									last_recording_seconds = subsonus_track_packet.observer_unix_time_seconds;
+									last_recording_microseconds = subsonus_track_packet.observer_microseconds;
+								}
+							}
 						}
 					}
 					// else
@@ -257,7 +217,6 @@ int main(int argc, char *argv[])
 		}
 		else
 		{
-
 			usleep(100000);
 		}
 	}

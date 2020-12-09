@@ -44,8 +44,6 @@
 #include <netdb.h>
 #include <errno.h>
 #include <signal.h>
-#include <stdatomic.h>
-#include <thread.h>
 
 #include "./lib/an_packet_protocol.h"
 #include "./lib/subsonus_packets.h"

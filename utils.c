@@ -132,3 +132,47 @@ void read_all_entries(struct data_entry *data_array, int index){
 		read_last_entry(&data_array[i]);
 	}
 }
+
+
+uint32_t parseIPV4string(char* ipAddress)
+{
+	unsigned int ipbytes[4];
+	sscanf(ipAddress, "%uhh.%uhh.%uhh.%uhh", &ipbytes[3], &ipbytes[2], &ipbytes[1], &ipbytes[0]);
+	return ipbytes[0] | ipbytes[1] << 8 | ipbytes[2] << 16 | ipbytes[3] << 24;
+}
+
+/*
+ * This is an example of sending a configuration packet to the GNSS Compass.
+ *
+ * 1. First declare the structure for the packet, in this case filter_options_packet_t.
+ * 2. Set all the fields of the packet structure
+ * 3. Encode the packet structure into an an_packet_t using the appropriate helper function
+ * 4. Send the packet
+ * 5. Free the packet
+ */
+void set_network_options(int * sockfd)
+{
+	an_packet_t *an_packet = an_packet_allocate(30, packet_id_network_settings);
+
+	network_settings_packet_t network_settings_packet;
+
+	// initialise the structure by setting all the fields to zero
+	memset(&network_settings_packet, 0, sizeof(network_settings_packet_t));
+
+	network_settings_packet.dhcp_mode_flags.b.dhcp_enabled = 1;
+	network_settings_packet.dhcp_mode_flags.b.automatic_dns = 1;
+	network_settings_packet.dhcp_mode_flags.b.link_mode = link_auto;
+	network_settings_packet.permanent = 1;
+
+	network_settings_packet.static_dns_server = (uint32_t) parseIPV4string((char*)"0.0.0.0");  // usually the network modem: e.g. 192.168.1.1
+	network_settings_packet.static_gateway = (uint32_t) parseIPV4string((char*)"0.0.0.0");     // usually the network modem: e.g. 192.168.1.1
+	network_settings_packet.static_ip_address = (uint32_t) parseIPV4string((char*)"0.0.0.0");  // e.g. 192.168.1.20
+	network_settings_packet.static_netmask = (uint32_t) parseIPV4string((char*)"255.255.255.0");     // e.g. 255.255.255.0
+
+	encode_network_settings_packet(an_packet, &network_settings_packet);
+	an_packet_encode(an_packet);
+
+	an_packet_transmit(an_packet, sockfd);
+
+	an_packet_free(&an_packet);
+}

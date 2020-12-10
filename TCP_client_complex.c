@@ -70,12 +70,12 @@ int main(int argc, char *argv[])
 	int data_array_index = 0;
 
 	// serial file descriptor attributes
-	fd_set serfds;
-	struct termios tty; // config object for serial port
-	int serial_fd = open_serial(&tty);
-	if (serial_fd < 0){
-		printf("Error opening serial port.\n");
-	}
+	//fd_set serfds;
+	//struct termios tty; // config object for serial port
+	//int serial_fd = open_serial(&tty);
+	//if (serial_fd < 0){
+	//	printf("Error opening serial port.\n");
+	//}
 
 	// Open TCP socket
 	int tcp_socket;
@@ -174,17 +174,17 @@ int main(int argc, char *argv[])
 			}
 		}
 		
-		// clear the list of file descriptors ready to write
-		FD_ZERO(&serfds);
-		// add serial_fd as a file descriptor ready to write
-		FD_SET(serial_fd, &serfds);
-		// check all file descriptors and determine if they're ready to read
-		select(serial_fd + 1, NULL, &serfds, NULL, &t);
-		if(FD_ISSET(serial_fd, &serfds))
-		{ 
-			// do some serial stuff
-			printf("Able to transmit serial command.\n");
-		}
+		//// clear the list of file descriptors ready to write
+		//FD_ZERO(&serfds);
+		//// add serial_fd as a file descriptor ready to write
+		//FD_SET(serial_fd, &serfds);
+		//// check all file descriptors and determine if they're ready to read
+		//select(serial_fd + 1, NULL, &serfds, NULL, &t);
+		//if(FD_ISSET(serial_fd, &serfds))
+		//{ 
+		//	// do some serial stuff
+		//	//printf("Able to transmit serial command.\n");
+		//}
 		else
 		{
 			usleep(100000);

@@ -1,2 +1,0 @@
-# All values are in meters.
-17:13:31: Xraw: -00.939 Yraw: 001.209 Zraw: -00.240 Xcor: -00.940 Ycor: 001.209 Zcor: -00.236 Deep: 000.00017:13:37: Xraw: -00.926 Yraw: 001.233 Zraw: -00.156 Xcor: -00.926 Ycor: 001.233 Zcor: -00.153 Deep: 000.00017:13:40: Xraw: -00.443 Yraw: 001.041 Zraw: -01.035 Xcor: -00.446 Ycor: 001.042 Zcor: -01.032 Deep: 000.000

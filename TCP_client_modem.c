@@ -51,14 +51,13 @@ void func(int sockfd, bool send, bool recv)
             // add tcp_socket as a file descriptor ready to write
             FD_SET(sockfd, &writefds);
             // check all file descriptors and determine if they're ready to write
-            n_ready = select(sockfd + 1, NULL, &writefds, NULL, &t);
+            n_ready = select(sockfd + 1, NULL, &writefds, NULL, NULL);
             // printf("Number of ready connections: %d\n", n_ready);
             if(FD_ISSET(sockfd, &writefds))
             {
                 n_bytes = write(sockfd, buff, n); // only write n bytes over pipe
                 printf("Wrote %d bytes to server.\n", n_bytes);
             }
-            usleep(10000); 
         } else if (recv) {
             // now check if we can read anything from the server.
             bzero(buff, sizeof(buff)); 
@@ -73,12 +72,12 @@ void func(int sockfd, bool send, bool recv)
                 printf("Received %d bytes from server.\n", n_bytes);
                 printf("Data from server: %s\n", buff); 
             }
-            usleep(10000); 
         } //send/recv
         if ((strncmp(buff, "exit", 4)) == 0) { 
             printf("Client Exit...\n"); 
             break; 
         }
+        usleep(10000); 
     } 
 } 
   
@@ -133,11 +132,7 @@ int main(int argc, char *argv[])
     // assign IP and PORT of server to connect to
     memset((char *) &servaddr, 0, sizeof(servaddr)); 
     servaddr.sin_family = AF_INET; 
-    // servaddr.sin_addr.s_addr = inet_addr("127.0.0.1"); 
     memcpy((char *) &servaddr.sin_addr.s_addr, (char *) server_s->h_addr_list[0], server_s->h_length);
-    // equivalent to the following:
-    // memcpy((char *) &servaddr.sin_addr.s_addr, (char *) server_s->h_addr, server_s->h_length);
-    // inet_aton(server_c, &servaddr.sin_addr.s_addr);
     servaddr.sin_port = htons(port); 
   
     // connect the client socket to server socket 

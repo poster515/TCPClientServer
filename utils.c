@@ -28,6 +28,49 @@ void read_last_entry(struct data_entry *data_array){
 	printf("\tX corrected = %f m, Y corrected = %f m, Z corrected = %f m\n", data_array->remote_corrected_position[0],data_array->remote_corrected_position[1],data_array->remote_corrected_position[2]);
 }
 
+int open_serial(struct termios *tty_ptr){
+	// set termios settings, and return FD if successful
+	
+	int serial_fd = open("/dev/ttyS0", O_RDWR | O_NDELAY);
+	if (tcgetattr(serial_fd, tty_ptr) != 0){
+		printf("Error: could not open serial port.\n");
+		return -1;
+	} else {
+		// then we were able to open the serial port.
+		// set some config attributes.
+		tty_ptr->c_cflag &= ~PARENB; // clear and disable parity bit
+		tty_ptr->c_cflag &= ~CSTOPB; // clear stop field
+		tty_ptr->c_cflag &= ~CSIZE;  // clear all bits that set the data size
+		tty_ptr->c_cflag |= CS8; 	 // 8 bits per byte
+		tty_ptr->c_cflag &= ~CRTSCTS; // disable RTS/CTS flow control
+		tty_ptr->c_cflag |= CREAD | CLOCAL; // turn on read and ignore ctrl lines
+		tty_ptr->c_cflag &= ~ICANON; // ???
+		tty_ptr->c_cflag &= ~ECHO; 	 // disable echo
+		tty_ptr->c_cflag &= ~ECHOE;  // disable erasure
+		tty_ptr->c_cflag &= ~ECHONL; // disable new-line echo
+		tty_ptr->c_cflag &= ~ISIG;   // disable interpretation of INTR, QUIT, SUSP
+		tty_ptr->c_cflag &= ~(IXON | IXOFF | IXANY); // disable SW flow control
+		tty_ptr->c_cflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL); // disable special in byte handlers
+		tty_ptr->c_cflag &= ~OPOST; // disable special out bytes handling
+		tty_ptr->c_cflag &= ~ONLCR; // prevent conversion of newline and carriage returns
+		tty_ptr->c_cc[VTIME] = 10; // wait for up to one second for connection
+		tty_ptr->c_cc[VMIN] = 0;
+
+		// TODO: determine actual baud rate
+		cfsetispeed(tty_ptr, B9600);
+		cfsetospeed(tty_ptr, B9600);
+
+		// save settings and check for error
+		if (tcsetattr(serial_fd, TCSANOW, tty_ptr) != 0){
+			printf("Error saving serial configuration, code: %d\n", errno);
+			return -1;
+		} 
+
+
+		return serial_fd;
+	}
+}
+
 int an_packet_transmit(an_packet_t *an_packet, int * sockfd)
 {
 	// set the header fields and calculate CRCs

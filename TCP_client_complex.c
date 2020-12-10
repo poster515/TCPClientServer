@@ -1,31 +1,4 @@
-/****************************************************************/
-/*                                                              */
-/*          Advanced Navigation Packet Protocol Library         */
-/*          C Language Static Subsonus SDK, Version 2.4         */
-/*              Copyright 2020, Advanced Navigation             */
-/*                                                              */
-/****************************************************************/
-/*
- * Copyright (C) 2020 Advanced Navigation
- *
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the "Software"),
- * to deal in the Software without restriction, including without limitation
- * the rights to use, copy, modify, merge, publish, distribute, sublicense,
- * and/or sell copies of the Software, and to permit persons to whom the
- * Software is furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
- * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
- * DEALINGS IN THE SOFTWARE.
- */
+
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -45,6 +18,8 @@
 #include <errno.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <fcntl.h>
+#include <termios.h>
 #include "utils.c"
 
 #define RADIANS_TO_DEGREES (180.0/M_PI)
@@ -78,7 +53,7 @@ int main(int argc, char *argv[])
 	int port = atoi(argv[2]);
 	struct hostent *server;
 
-	// file descriptor attributes
+	// socket file descriptor attributes
 	struct timeval t;
 	fd_set readfds;
 	t.tv_sec = 1; // was 0
@@ -88,14 +63,19 @@ int main(int argc, char *argv[])
 	an_decoder_t an_decoder;
 	an_packet_t *an_packet;
 	an_decoder_initialise(&an_decoder);
-	subsonus_system_state_packet_t system_state_packet;
 	subsonus_track_packet_t subsonus_track_packet;
 
 	// data entry array
 	struct data_entry data_array[MAX_DATA_ENTRIES];
 	int data_array_index = 0;
-	uint32_t last_recording_microseconds = 0;
-	uint32_t last_recording_seconds = 0;
+
+	// serial file descriptor attributes
+	fd_set serfds;
+	struct termios tty; // config object for serial port
+	int serial_fd = open_serial(&tty);
+	if (serial_fd < 0){
+		printf("Error opening serial port.\n");
+	}
 
 	// Open TCP socket
 	int tcp_socket;
@@ -163,20 +143,6 @@ int main(int argc, char *argv[])
 				/* decode all the packets in the buffer */
 				while((an_packet = an_packet_decode_dynamic(&an_decoder)) != NULL)
 				{
-					// if(an_packet->id == packet_id_subsonus_system_state) /* system state packet */
-					// {
-					// 	printf("System State Packet ID %u of Length %u\n", an_packet->id, an_packet->length);
-					// 	/* copy all the binary data into the typedef struct for the packet */
-					// 	/* this allows easy access to all the different values             */
-					// 	if(decode_subsonus_system_state_packet(&system_state_packet, an_packet) == 0)
-					// 	{
-					// 		printf("Subsonus System State Packet:\n");
-					// 		printf("\tLatitude = %f, Longitude = %f, Height = %f\n", system_state_packet.latitude * RADIANS_TO_DEGREES, system_state_packet.longitude * RADIANS_TO_DEGREES, system_state_packet.height);
-					// 		printf("\tRoll = %f, Pitch = %f, Heading = %f\n", system_state_packet.orientation[0] * RADIANS_TO_DEGREES, system_state_packet.orientation[1] * RADIANS_TO_DEGREES, system_state_packet.orientation[2] * RADIANS_TO_DEGREES);
-					// 	}
-					// 	printf("Total number of state packets received: %d\n", ++num_state_packets);
-					// }
-					// else 
 					if(an_packet->id == packet_id_subsonus_track) /* subsonus track packet */
 					{
 						//printf("Remote Track Packet ID %u of Length %u\n", an_packet->id, an_packet->length);
@@ -194,8 +160,6 @@ int main(int argc, char *argv[])
 							// now save data into array if there is space for it. 
 							if (data_array_index < MAX_DATA_ENTRIES){
 								copy_data_entry(&subsonus_track_packet, &data_array[data_array_index]);
-								last_recording_seconds = subsonus_track_packet.observer_unix_time_seconds;
-								last_recording_microseconds = subsonus_track_packet.observer_microseconds;
 								++data_array_index;
 							} else {
 								printf("Cannot save any more data, saving existing data.\n");
@@ -203,15 +167,23 @@ int main(int argc, char *argv[])
 							}
 						}
 					}
-					// else
-					// {
-					// 	printf("Packet ID %u of Length %u\n", an_packet->id, an_packet->length);
-					// }
 
 					/* Ensure that you free the an_packet when your done with it or you will leak memory */
 					an_packet_free(&an_packet);
 				}
 			}
+		}
+		
+		// clear the list of file descriptors ready to write
+		FD_ZERO(&serfds);
+		// add serial_fd as a file descriptor ready to write
+		FD_SET(serial_fd, &serfds);
+		// check all file descriptors and determine if they're ready to read
+		select(serial_fd + 1, NULL, &serfds, NULL, &t);
+		if(FD_ISSET(serial_fd, &serfds))
+		{ 
+			// do some serial stuff
+			printf("Able to transmit serial command.\n");
 		}
 		else
 		{

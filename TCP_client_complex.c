@@ -116,14 +116,8 @@ int main(int argc, char *argv[])
 	// printf("Encode Network Settings Packet: \n");
 	// set_network_options();
 
-	while(1)
+	while(STOP != true)
 	{
-		if (STOP == true) {
-			printf("User has ended program. Exiting...\n");
-			//read_all_entries(data_array, data_array_index);
-			write_output_file(data_array, data_array_index);
-			exit(EXIT_SUCCESS);
-		}
 		// clear the list of file descriptors ready to read
 		FD_ZERO(&readfds);
 		// add tcp_socket as a file descriptor ready to read
@@ -190,6 +184,15 @@ int main(int argc, char *argv[])
 			usleep(100000);
 		}
 	}
+	//// close the serial port
+	//if (serial_fd >= 0){
+	//	close(serial_fd);
+	//}
+
+	// close the socket 
+    close(tcp_socket); 
+	printf("Saving data and exiting program...\n");
+	write_output_file(data_array, data_array_index);
 
 	return EXIT_SUCCESS;
 }

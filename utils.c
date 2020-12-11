@@ -125,7 +125,7 @@ void flush_connection(int tcp_socket)
 }
 
 void write_output_file(struct data_entry *data_array, const int index){
-	printf("There are %d data entries to save...\n", index);
+	printf("There are %d data entries to save.\n", index);
 	// create filename as follows: 
 	// YYYY_MM_DD_hh_mm_ss from first unix time stamp in array
 	if (index > 0){
@@ -136,7 +136,7 @@ void write_output_file(struct data_entry *data_array, const int index){
 		char file_name[24]; // 24 characters in the formatting string below plus a null
 		sprintf(file_name, "%04d_%02d_%02d_%02d_%02d_%02d.txt", 
 			(ptm->tm_year)+1900, (ptm->tm_mon)+1, ptm->tm_mday, ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
-		printf("Writing to file %s\n", file_name);
+		printf("Writing to file '%s'\n", file_name);
 		// open and write to file
 		FILE *fp;
 		fp = fopen(file_name, "w+");

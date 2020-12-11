@@ -32,8 +32,7 @@ void func(int sockfd, bool send, bool recv)
     struct timeval t;
 	t.tv_sec = 0;
 	t.tv_usec = 10000;
-    // number of ready connections
-    int n_ready = 0;
+
     while(1)
 	{
         if (send) {
@@ -51,8 +50,7 @@ void func(int sockfd, bool send, bool recv)
             // add tcp_socket as a file descriptor ready to write
             FD_SET(sockfd, &writefds);
             // check all file descriptors and determine if they're ready to write
-            n_ready = select(sockfd + 1, NULL, &writefds, NULL, NULL);
-            // printf("Number of ready connections: %d\n", n_ready);
+            select(sockfd + 1, NULL, &writefds, NULL, NULL);
             if(FD_ISSET(sockfd, &writefds))
             {
                 n_bytes = write(sockfd, buff, n); // only write n bytes over pipe
@@ -64,8 +62,7 @@ void func(int sockfd, bool send, bool recv)
             n = 0;
             FD_ZERO(&readfds);
             FD_SET(sockfd, &readfds);
-            n_ready = select(sockfd + 1, &readfds, NULL, NULL, &t);
-            // printf("Number of ready connections: %d\n", n_ready);
+            select(sockfd + 1, &readfds, NULL, NULL, &t);
             if(FD_ISSET(sockfd, &readfds))
             {
                 n_bytes = read(sockfd, buff, sizeof(buff));
@@ -83,11 +80,11 @@ void func(int sockfd, bool send, bool recv)
   
 int main(int argc, char *argv[]) 
 { 
-    if(argc != 4)
-	{
-		printf("Usage - program port \nExample - TCP_client_simple [IP_addr] [port] [-r/-s]\n");
+    if((argc < 4) || (argc > 5)) {
+		printf("Usage: TCP_client_simple [IP_addr] [port] [-r] [-s]\n");
         printf("Use '-r' to enable receiving data.\n");
         printf("Use '-s' to enable sending data.\n");
+        printf("Must use one or both of '-s' and '-r'.\n");
 		exit(EXIT_FAILURE);
 	}
     bool send = false;
@@ -102,9 +99,21 @@ int main(int argc, char *argv[])
     if ((strncmp(argv[3], "-r", 2)) == 0) { 
         printf("Configuring client to receive data...\n");  
         recv = true;
+        if (argc == 5){
+            if ((strncmp(argv[4], "-s", 2)) == 0) {
+                printf("Also configuring client to send data.\n"); 
+                send = true;
+            }
+        }
     } else if ((strncmp(argv[3], "-s", 2) == 0)) {
         printf("Configuring client to send data...\n");
         send = true;
+        if (argc == 5){
+            if ((strncmp(argv[4], "-r", 2)) == 0) { 
+                printf("Also configuring client to receive data.\n");  
+                recv = true;
+            }
+        }
     } else {
         printf("Send/receive option not recognized. Use '-r' or '-s'.\n");
         exit(EXIT_FAILURE);
@@ -117,7 +126,7 @@ int main(int argc, char *argv[])
         exit(0); 
     } 
     else
-        printf("Socket successfully created..\n"); 
+        printf("Socket successfully created...\n"); 
 
     bzero(&servaddr, sizeof(servaddr)); 
 

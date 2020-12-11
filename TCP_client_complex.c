@@ -112,9 +112,6 @@ int main(int argc, char *argv[])
 
 	printf("Flushing receive buffer...\n");
 	flush_connection(tcp_socket);
-	
-	// printf("Encode Network Settings Packet: \n");
-	// set_network_options();
 
 	while(STOP != true)
 	{

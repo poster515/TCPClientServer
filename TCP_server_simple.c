@@ -19,53 +19,130 @@
 #include <unistd.h>
 #include <sys/time.h>
 #include <errno.h>
+#include <signal.h>
+#include <stdbool.h>
 #include "./lib/an_packet_protocol.h"
 #include "./lib/subsonus_packets.h"
 
-#define PORT 16740 
 #ifndef M_PI
 #define M_PI (3.14159265358979323846)
 #endif
 #define RADIANS_TO_DEGREES (180.0/M_PI)
 
+// flag to denote the user has stopped data collection
+static volatile bool STOP = false;
+
 // Function designed for chat between client and server. 
-void listen_simple(int connfd) 
-{ 
+void listen_simple(int connfd, bool send, bool recv){ 
 	// establish a muffer with max AN packet length
 	char buff[AN_MAXIMUM_PACKET_SIZE]; 
 	int n; 
+	fd_set readfds, writefds;
+	struct timeval t;
+	t.tv_sec = 0;
+	t.tv_usec = 10000;
+	int n_bytes = 0;
+
 	// infinite loop for chat 
-	for (;;) { 
-		bzero(buff, AN_MAXIMUM_PACKET_SIZE); 
+	while(STOP != true) { 
+		// clear the list of file descriptors ready to read
+		FD_ZERO(&readfds);
+		// add tcp_socket as a file descriptor ready to read
+		FD_SET(connfd, &readfds);
+		// check all file descriptors and determine if they're ready to read
+		select(connfd + 1, &readfds, NULL, NULL, &t);
+		if(FD_ISSET(connfd, &readfds)){
+			if (recv == true){
+				bzero(buff, AN_MAXIMUM_PACKET_SIZE); 
 
-		// read the message from client and copy it in buffer 
-		read(connfd, buff, sizeof(buff)); 
-       
-		// print buffer which contains the client contents 
-		printf("From client: %s\t To client : ", buff); 
-
-		// erase buff contents
-		bzero(buff, AN_MAXIMUM_PACKET_SIZE); 
-		n = 0; 
-
-		// obtain user input and copy into buffer 
-		while ((buff[n++] = getchar()) != '\n') 
-			; 
-
-		// and send that buffer to client 
-		write(connfd, buff, sizeof(buff)); 
-
+				// read the message from client and copy it in buffer 
+				n_bytes = read(connfd, buff, sizeof(buff)); 
+			
+				// print buffer which contains the client contents 
+				printf("Received %d bytes from client\n", n_bytes);
+				printf("From client: '%s'\n", buff); 
+			}
+		}
 		// if msg contains "Exit" then server exit and chat ended. 
 		if (strncmp("exit", buff, 4) == 0) { 
 			printf("Server Exit...\n"); 
-			break; 
+			STOP = true; 
+		} 
+		// clear the list of file descriptors ready to read
+		FD_ZERO(&writefds);
+		// add tcp_socket as a file descriptor ready to read
+		FD_SET(connfd, &writefds);
+		// check all file descriptors and determine if they're ready to read
+		select(connfd + 1, NULL, &writefds, NULL, &t);
+		if (FD_ISSET(connfd, &writefds)){
+			if (send == true){
+				// erase buff contents
+				bzero(buff, AN_MAXIMUM_PACKET_SIZE); 
+				n = 0; 
+
+				// obtain user input and copy into buffer 
+				while ((buff[n++] = getchar()) != '\n'); 
+
+				// and send that buffer to client 
+				write(connfd, buff, sizeof(buff)); 
+			}
+		}
+		// if msg contains "Exit" then server exit and chat ended. 
+		if (strncmp("exit", buff, 4) == 0) { 
+			printf("Server Exit...\n"); 
+			STOP = true; 
 		} 
 	}
+	//close(connfd); 
+}
+void sigintHandler(int signum){
+	printf("\nCaught SIGINT, exiting program...\n");
+	// write flag indicating that we should stop 
+	STOP = true;
+	//signal(SIGINT, sigintHandler);
 }
 
 // Driver function 
-int main() 
+int main(int argc, char *argv[]) 
 { 
+	if((argc < 3) || (argc > 4)) {
+		printf("Usage: TCP_server_simple [port] [-r] [-s]\n");
+        printf("Use '-r' to enable receiving data.\n");
+        printf("Use '-s' to enable sending data.\n");
+        printf("Must use one or both of '-s' and '-r'.\n");
+		exit(EXIT_FAILURE);
+	}
+	signal(SIGINT, sigintHandler);
+    bool send = false;
+    bool recv = false;
+	int port = atoi(argv[1]);
+
+	if ((strncmp(argv[2], "-r", 2)) == 0) { 
+        printf("Configuring server to receive data...\n");  
+        recv = true;
+        if (argc == 4){
+            if ((strncmp(argv[3], "-s", 2)) == 0) {
+                printf("Also configuring server to send data.\n"); 
+                send = true;
+            } else {
+				printf("Fourth argument unknown.\n");
+			}
+        }
+    } else if ((strncmp(argv[2], "-s", 2) == 0)) {
+        printf("Configuring server to send data...\n");
+        send = true;
+        if (argc == 4){
+            if ((strncmp(argv[3], "-r", 2)) == 0) { 
+                printf("Also configuring server to receive data.\n");  
+                recv = true;
+            } else {
+				printf("Fourth argument unknown.\n");
+			}
+        }
+    } else {
+        printf("Send/receive option not recognized. Use '-r' or '-s'.\n");
+        exit(EXIT_FAILURE);
+    }
 	int sockfd, connfd, len; 
 	struct sockaddr_in servaddr, cli; 
 
@@ -84,7 +161,7 @@ int main()
 	// assign IP, PORT. Listens to any IP address on the specific PORT
 	servaddr.sin_family = AF_INET; 
 	servaddr.sin_addr.s_addr = htonl(INADDR_ANY); //converts the unsigned integer hostlong from host byte order to network byte order
-	servaddr.sin_port = htons(PORT); // converts the unsigned short integer netshort from network byte order to host byte order
+	servaddr.sin_port = htons(port); // converts the unsigned short integer netshort from network byte order to host byte order
 
 	// Binding newly created socket to given IP and verify connection
 	if ((bind(sockfd, (sockaddr*)&servaddr, sizeof(servaddr))) != 0) { 
@@ -118,7 +195,7 @@ int main()
 		printf("server accept success!\n"); 
 
 	// finally, listen to bytes over the socket
-	listen_simple(connfd); // should this be sockfd?
+	listen_simple(connfd, send, recv); // should this be sockfd?
 
 	// After chatting close the socket 
 	close(sockfd); 

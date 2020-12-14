@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <signal.h>
 // #include "./lib/an_packet_protocol.h"
 // #include "./lib/subsonus_packets.h"
 #ifndef M_PI
@@ -17,6 +18,8 @@
 #define SA struct sockaddr 
 #define RADIANS_TO_DEGREES (180.0/M_PI)
 #define MAX 255
+
+static volatile bool STOP = false;
 
 // User enters a message to send to server. 
 void func(int sockfd, bool send, bool recv) 
@@ -33,7 +36,7 @@ void func(int sockfd, bool send, bool recv)
 	t.tv_sec = 0;
 	t.tv_usec = 10000;
 
-    while(1)
+    while(STOP == false)
 	{
         if (send) {
             // grab some data to send. 
@@ -41,25 +44,19 @@ void func(int sockfd, bool send, bool recv)
             bzero(buff, sizeof(buff)); 
             printf("Enter the string : "); 
             n_bytes = 0;
-            n = 0; 
             while ((buff[n++] = getchar()) != '\n');
-
-            // now determine if we can write data to server.
-            // clear the list of file descriptors ready to write
             FD_ZERO(&writefds);
-            // add tcp_socket as a file descriptor ready to write
             FD_SET(sockfd, &writefds);
-            // check all file descriptors and determine if they're ready to write
-            select(sockfd + 1, NULL, &writefds, NULL, NULL);
-            if(FD_ISSET(sockfd, &writefds))
-            {
+            select(sockfd + 1, NULL, &writefds, NULL, &t);
+            if(FD_ISSET(sockfd, &writefds)){
                 n_bytes = write(sockfd, buff, n); // only write n bytes over pipe
                 printf("Wrote %d bytes to server.\n", n_bytes);
             }
-        } else if (recv) {
+        } 
+        
+        if (recv) {
             // now check if we can read anything from the server.
             bzero(buff, sizeof(buff)); 
-            n = 0;
             FD_ZERO(&readfds);
             FD_SET(sockfd, &readfds);
             select(sockfd + 1, &readfds, NULL, NULL, &t);
@@ -69,14 +66,22 @@ void func(int sockfd, bool send, bool recv)
                 printf("Received %d bytes from server.\n", n_bytes);
                 printf("Data from server: %s\n", buff); 
             }
-        } //send/recv
+        } 
+
         if ((strncmp(buff, "exit", 4)) == 0) { 
-            printf("Client Exit...\n"); 
             break; 
         }
         usleep(10000); 
     } 
+    printf("Client terminating...\n");
 } 
+
+void sigintHandler(int signum){
+	printf("\nCaught SIGINT, exiting program...\n");
+	// write flag indicating that we should stop 
+	STOP = true;
+	//signal(SIGINT, sigintHandler);
+}
   
 int main(int argc, char *argv[]) 
 { 
@@ -87,6 +92,7 @@ int main(int argc, char *argv[])
         printf("Must use one or both of '-s' and '-r'.\n");
 		exit(EXIT_FAILURE);
 	}
+    signal(SIGINT, sigintHandler);
     bool send = false;
     bool recv = false;
     int sockfd; 
@@ -103,6 +109,8 @@ int main(int argc, char *argv[])
             if ((strncmp(argv[4], "-s", 2)) == 0) {
                 printf("Also configuring client to send data.\n"); 
                 send = true;
+            } else {
+                printf("Uknown fifth option. Please use '-s' instead of %s", argv[4]);
             }
         }
     } else if ((strncmp(argv[3], "-s", 2) == 0)) {
@@ -112,6 +120,8 @@ int main(int argc, char *argv[])
             if ((strncmp(argv[4], "-r", 2)) == 0) { 
                 printf("Also configuring client to receive data.\n");  
                 recv = true;
+            } else {
+                printf("Uknown fifth option. Please use '-r' instead of %s", argv[4]);
             }
         }
     } else {
@@ -150,7 +160,7 @@ int main(int argc, char *argv[])
         exit(0); 
     } 
     else
-        printf("Connected to the server..\n"); 
+        printf("Connected to the server...\n"); 
   
     // function for chat 
     func(sockfd, send, recv); 

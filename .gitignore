@@ -4,6 +4,7 @@
 !*.c
 #*.txt
 .vs
+*.csv
 
 # ignore the compiled binary. 
 TCP_client_simple

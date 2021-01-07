@@ -201,6 +201,7 @@ int main(int argc, char *argv[])
 	if (getchar() == 'y'){
 		printf("Saving data and exiting program...\n");
 		write_output_file(track_packets, data_array_index);
+		printf("Exiting.");
 	} else {
 		printf("Discarding data and exiting.\n");
 	}

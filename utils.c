@@ -10,6 +10,7 @@
 #include "./lib/an_packet_protocol.h"
 #include "./lib/subsonus_packets.h"
 #define MAX_DATA_ENTRIES 1000
+#define RADIANS_TO_DEGREES (180.0/M_PI)
 
 struct data_entry {
 	uint32_t observer_unix_time_seconds;
@@ -151,6 +152,18 @@ void write_output_file(subsonus_track_packet_t *data_array, const int index){
 		if (fp != NULL){
 			printf("Opened file successfully, writing data...\n");
 			fputs("timestamp,", fp);
+			fputs("observer_roll,", fp);
+			fputs("observer_pitch,", fp);
+			fputs("observer_heading,", fp);
+			fputs("remote_range,", fp);
+			fputs("remote_azimuth,", fp);
+			fputs("remote_elevation,", fp);
+			fputs("remote_raw_x,", fp);
+			fputs("remote_raw_y,", fp);
+			fputs("remote_raw_z,", fp);
+			fputs("remote_corrected_x,", fp);
+			fputs("remote_corrected_y,", fp);
+			fputs("remote_corrected_z,", fp);
 			fputs("device_address,", fp);
 			//fputs("tracking_status,", fp);
 			//fputs("observer_system_status,", fp);
@@ -187,9 +200,6 @@ void write_output_file(subsonus_track_packet_t *data_array, const int index){
 			fputs("observer_velocity_north,", fp);
 			fputs("observer_velocity_east,", fp);
 			fputs("observer_velocity_down,", fp);
-			fputs("observer_roll,", fp);
-			fputs("observer_pitch,", fp);
-			fputs("observer_heading,", fp);
 			fputs("observer_latitude_std_dev,", fp);
 			fputs("observer_longitude_std_dev,", fp);
 			fputs("observer_height_std_dev,", fp);
@@ -198,15 +208,6 @@ void write_output_file(subsonus_track_packet_t *data_array, const int index){
 			fputs("observer_heading_std_dev,", fp);
 			fputs("observer_depth,", fp);
 			fputs("age_microseconds,", fp);
-			fputs("remote_range,", fp);
-			fputs("remote_azimuth,", fp);
-			fputs("remote_elevation,", fp);
-			fputs("remote_raw_x,", fp);
-			fputs("remote_raw_y,", fp);
-			fputs("remote_raw_z,", fp);
-			fputs("remote_corrected_x,", fp);
-			fputs("remote_corrected_y,", fp);
-			fputs("remote_corrected_z,", fp);
 			fputs("remote_north,", fp);
 			fputs("remote_east,", fp);
 			fputs("remote_down,", fp);
@@ -231,6 +232,18 @@ void write_output_file(subsonus_track_packet_t *data_array, const int index){
 				ptm = localtime(&temp_t);
 				
 				fprintf(fp, "\r%02d:%02d:%02d,",ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
+				fprintf(fp, "%09.3f,", data_array[i].observer_orientation[0] * RADIANS_TO_DEGREES);
+				fprintf(fp, "%09.3f,", data_array[i].observer_orientation[1] * RADIANS_TO_DEGREES);
+				fprintf(fp, "%09.3f,", data_array[i].observer_orientation[2] * RADIANS_TO_DEGREES);
+				fprintf(fp, "%09.3f,", data_array[i].range);
+				fprintf(fp, "%09.3f,", data_array[i].azimuth * RADIANS_TO_DEGREES);
+				fprintf(fp, "%09.3f,", data_array[i].elevation * RADIANS_TO_DEGREES);
+				fprintf(fp, "%09.3f,", data_array[i].raw_position[0]);
+				fprintf(fp, "%09.3f,", data_array[i].raw_position[1]);
+				fprintf(fp, "%09.3f,", data_array[i].raw_position[2]);
+				fprintf(fp, "%09.3f,", data_array[i].corrected_position[0]);
+				fprintf(fp, "%09.3f,", data_array[i].corrected_position[1]);
+				fprintf(fp, "%09.3f,", data_array[i].corrected_position[2]);
 				fprintf(fp, "%07d,", data_array[i].device_address);
 				//fprintf(fp, "%09.3f,", data_array[i].tracking_status);
 				//fprintf(fp, "%09.3f,", data_array[i].observer_system_status);
@@ -264,43 +277,31 @@ void write_output_file(subsonus_track_packet_t *data_array, const int index){
 				// end valid flags				
 				fprintf(fp, "%010d,", data_array[i].observer_unix_time_seconds);
 				fprintf(fp, "%010d,", data_array[i].observer_microseconds);
-				fprintf(fp, "%09.3f,", data_array[i].observer_latitude);
-				fprintf(fp, "%09.3f,", data_array[i].observer_longitude);
+				fprintf(fp, "%09.3f,", data_array[i].observer_latitude * RADIANS_TO_DEGREES);
+				fprintf(fp, "%09.3f,", data_array[i].observer_longitude * RADIANS_TO_DEGREES);
 				fprintf(fp, "%09.3f,", data_array[i].observer_height);
 				fprintf(fp, "%09.3f,", data_array[i].observer_velocity[0]);
 				fprintf(fp, "%09.3f,", data_array[i].observer_velocity[1]);
 				fprintf(fp, "%09.3f,", data_array[i].observer_velocity[2]);
-				fprintf(fp, "%09.3f,", data_array[i].observer_orientation[0]);
-				fprintf(fp, "%09.3f,", data_array[i].observer_orientation[1]);
-				fprintf(fp, "%09.3f,", data_array[i].observer_orientation[2]);
 				fprintf(fp, "%09.3f,", data_array[i].observer_position_standard_deviation[0]);
 				fprintf(fp, "%09.3f,", data_array[i].observer_position_standard_deviation[1]);
 				fprintf(fp, "%09.3f,", data_array[i].observer_position_standard_deviation[2]);
-				fprintf(fp, "%09.3f,", data_array[i].observer_orientation_standard_deviation[0]);
-				fprintf(fp, "%09.3f,", data_array[i].observer_orientation_standard_deviation[1]);
-				fprintf(fp, "%09.3f,", data_array[i].observer_orientation_standard_deviation[2]);
+				fprintf(fp, "%09.3f,", data_array[i].observer_orientation_standard_deviation[0] * RADIANS_TO_DEGREES);
+				fprintf(fp, "%09.3f,", data_array[i].observer_orientation_standard_deviation[1] * RADIANS_TO_DEGREES);
+				fprintf(fp, "%09.3f,", data_array[i].observer_orientation_standard_deviation[2] * RADIANS_TO_DEGREES);
 				fprintf(fp, "%09.3f,", data_array[i].observer_depth);
 				fprintf(fp, "%010d,", data_array[i].age_microseconds);
-				fprintf(fp, "%09.3f,", data_array[i].range);
-				fprintf(fp, "%09.3f,", data_array[i].azimuth);
-				fprintf(fp, "%09.3f,", data_array[i].elevation);
-				fprintf(fp, "%09.3f,", data_array[i].raw_position[0]);
-				fprintf(fp, "%09.3f,", data_array[i].raw_position[1]);
-				fprintf(fp, "%09.3f,", data_array[i].raw_position[2]);
-				fprintf(fp, "%09.3f,", data_array[i].corrected_position[0]);
-				fprintf(fp, "%09.3f,", data_array[i].corrected_position[1]);
-				fprintf(fp, "%09.3f,", data_array[i].corrected_position[2]);
 				fprintf(fp, "%09.3f,", data_array[i].ned_position[0]);
 				fprintf(fp, "%09.3f,", data_array[i].ned_position[1]);
 				fprintf(fp, "%09.3f,", data_array[i].ned_position[2]);
-				fprintf(fp, "%09.3f,", data_array[i].latitude);
-				fprintf(fp, "%09.3f,", data_array[i].longitude);
+				fprintf(fp, "%09.3f,", data_array[i].latitude * RADIANS_TO_DEGREES);
+				fprintf(fp, "%09.3f,", data_array[i].longitude * RADIANS_TO_DEGREES);
 				fprintf(fp, "%09.3f,", data_array[i].height);
 				fprintf(fp, "%09.3f,", data_array[i].range_standard_deviation);
-				fprintf(fp, "%09.3f,", data_array[i].azimuth_standard_deviation);
-				fprintf(fp, "%09.3f,", data_array[i].elevation_standard_deviation);
-				fprintf(fp, "%09.3f,", data_array[i].latitude_standard_deviation);
-				fprintf(fp, "%09.3f,", data_array[i].longitude_standard_deviation);
+				fprintf(fp, "%09.3f,", data_array[i].azimuth_standard_deviation * RADIANS_TO_DEGREES);
+				fprintf(fp, "%09.3f,", data_array[i].elevation_standard_deviation * RADIANS_TO_DEGREES);
+				fprintf(fp, "%09.3f,", data_array[i].latitude_standard_deviation * RADIANS_TO_DEGREES);
+				fprintf(fp, "%09.3f,", data_array[i].longitude_standard_deviation * RADIANS_TO_DEGREES);
 				fprintf(fp, "%09.3f,", data_array[i].height_standard_deviation);
 				fprintf(fp, "%09.3f,", data_array[i].depth);
 				fprintf(fp, "%04d,", data_array[i].signal_level);

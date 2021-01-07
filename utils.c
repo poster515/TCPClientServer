@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <time.h>
+#include <termios.h>
+#include <fcntl.h>
+#include <errno.h>
 #include "./lib/an_packet_protocol.h"
 #include "./lib/subsonus_packets.h"
 #define MAX_DATA_ENTRIES 1000
@@ -20,6 +23,9 @@ void copy_data_entry(subsonus_track_packet_t *subsonus_track_packet, struct data
 	memcpy(data_array->remote_raw_position, (*subsonus_track_packet).raw_position, 3 * sizeof(float));
 	memcpy(data_array->remote_corrected_position, (*subsonus_track_packet).corrected_position, 3 * sizeof(float));
 	data_array->remote_depth = (*subsonus_track_packet).depth;
+}
+void copy_packet(subsonus_track_packet_t *subsonus_track_packet, subsonus_track_packet_t *data_array){
+	memcpy(data_array, subsonus_track_packet, sizeof(subsonus_track_packet_t));
 }
 
 void read_last_entry(struct data_entry *data_array){
@@ -124,7 +130,9 @@ void flush_connection(int tcp_socket)
 	}
 }
 
-void write_output_file(struct data_entry *data_array, const int index){
+void write_output_file(subsonus_track_packet_t *data_array, const int index){
+	// Takes array of subsonus track packets and saves data to CSV file.
+
 	printf("There are %d data entries to save.\n", index);
 	// create filename as follows: 
 	// YYYY_MM_DD_hh_mm_ss from first unix time stamp in array
@@ -134,7 +142,7 @@ void write_output_file(struct data_entry *data_array, const int index){
 		struct tm *ptm = localtime(&t);
 		
 		char file_name[24]; // 24 characters in the formatting string below plus a null
-		sprintf(file_name, "%04d_%02d_%02d_%02d_%02d_%02d.txt", 
+		sprintf(file_name, "%04d_%02d_%02d_%02d_%02d_%02d.csv", 
 			(ptm->tm_year)+1900, (ptm->tm_mon)+1, ptm->tm_mday, ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
 		printf("Writing to file '%s'\n", file_name);
 		// open and write to file
@@ -142,23 +150,238 @@ void write_output_file(struct data_entry *data_array, const int index){
 		fp = fopen(file_name, "w+");
 		if (fp != NULL){
 			printf("Opened file successfully, writing data...\n");
-			fputs("# All values are in meters.\n", fp);
+			fputs("timestamp,", fp);
+			fputs("device_address,", fp);
+			//fputs("tracking_status,", fp);
+			//fputs("observer_system_status,", fp);
+			//fputs("observer_filter_status,", fp);
+			fputs("observer_time_valid,", fp);
+			fputs("observer_position_valid,", fp);
+			fputs("observer_velocity_valid,", fp);
+			fputs("observer_orientation_valid,", fp);
+			fputs("observer_position_std_dev_valid,", fp);
+			fputs("observer_orientation_std_dev_valid,", fp);
+			fputs("observer_depth_valid,", fp);
+			fputs("age_valid,", fp);
+			fputs("range_valid,", fp);
+			fputs("azimuth_valid,", fp);
+			fputs("elevation_valid,", fp);
+			fputs("raw_position_valid,", fp);
+			fputs("corrected_position_valid,", fp);
+			fputs("ned_position_valid,", fp);
+			fputs("geodetic_position_valid,", fp);
+			fputs("range_std_dev_valid,", fp);
+			fputs("azimuth_std_dev_valid,", fp);
+			fputs("elevation_std_dev_valid,", fp);
+			fputs("position_std_dev_valid,", fp);
+			fputs("depth_valid,", fp);
+			fputs("signal_level_valid,", fp);
+			fputs("signal_to_noise_ratio_valid,", fp);
+			fputs("signal_correlation_ratio_valid,", fp);
+			fputs("signal_correlation_interference_valid,", fp);
+			fputs("observer_unix_time_seconds,", fp);
+			fputs("observer_microseconds,", fp);
+			fputs("observer_latitude,", fp);
+			fputs("observer_longitude,", fp);
+			fputs("observer_height,", fp);
+			fputs("observer_velocity_north,", fp);
+			fputs("observer_velocity_east,", fp);
+			fputs("observer_velocity_down,", fp);
+			fputs("observer_roll,", fp);
+			fputs("observer_pitch,", fp);
+			fputs("observer_heading,", fp);
+			fputs("observer_latitude_std_dev,", fp);
+			fputs("observer_longitude_std_dev,", fp);
+			fputs("observer_height_std_dev,", fp);
+			fputs("observer_roll_std_dev,", fp);
+			fputs("observer_pitch_std_dev,", fp);
+			fputs("observer_heading_std_dev,", fp);
+			fputs("observer_depth,", fp);
+			fputs("age_microseconds,", fp);
+			fputs("remote_range,", fp);
+			fputs("remote_azimuth,", fp);
+			fputs("remote_elevation,", fp);
+			fputs("remote_raw_x,", fp);
+			fputs("remote_raw_y,", fp);
+			fputs("remote_raw_z,", fp);
+			fputs("remote_corrected_x,", fp);
+			fputs("remote_corrected_y,", fp);
+			fputs("remote_corrected_z,", fp);
+			fputs("remote_north,", fp);
+			fputs("remote_east,", fp);
+			fputs("remote_down,", fp);
+			fputs("remote_latitude,", fp);
+			fputs("remote_longitude,", fp);
+			fputs("remote_height,", fp);
+			fputs("remote_range_std_dev,", fp);
+			fputs("remote_azimuth_std_dev,", fp);
+			fputs("remote_elevation_std_dev,", fp);
+			fputs("remote_latitude_std_dev,", fp);
+			fputs("remote_longitude_std_dev,", fp);
+			fputs("remote_height_std_dev,", fp);
+			fputs("remote_depth,", fp);
+			fputs("signal_level,", fp);
+			fputs("signal_to_noise_ratio,", fp);
+			fputs("signal_correlation_ratio,", fp); //70
+			fputs("signal_correlation_interference", fp);
+
 			int i = 0;
 			for(i = 0; i < index; ++i){
-				// each line should have the following formatting:
-				// hh:mm:ss: Xraw: {} Yraw: {} Zraw: {} Xcorr: {} Ycorr: {} Zcorr: {} Depth: {}\n
 				time_t temp_t = (time_t) data_array[i].observer_unix_time_seconds;
 				ptm = localtime(&temp_t);
-				char entry[2288]; // length of format below plus a null
-				sprintf(entry, "\r%02d:%02d:%02d: Xraw: %07.3f Yraw: %07.3f Zraw: %07.3f Xcor: %07.3f Ycor: %07.3f Zcor: %07.3f Deep: %07.3f", 
-				ptm->tm_hour, ptm->tm_min, ptm->tm_sec,
-				data_array[i].remote_raw_position[0],
-				data_array[i].remote_raw_position[1],
-				data_array[i].remote_raw_position[2],
-				data_array[i].remote_corrected_position[0],
-				data_array[i].remote_corrected_position[1],
-				data_array[i].remote_corrected_position[2],
-				data_array[i].remote_depth);
+				
+				char entry[39]; // length of format below plus a null
+
+				sprintf(entry, "\r%02d:%02d:%02d,",ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
+				fputs(entry, fp);
+				sprintf(entry, "%07d,", data_array[i].device_address);
+				fputs(entry, fp);
+				//sprintf(entry, "%07.3f,", data_array[i].tracking_status);
+				//fputs(entry, fp);
+				//sprintf(entry, "%07.3f,", data_array[i].observer_system_status);
+				//fputs(entry, fp);
+				//sprintf(entry, "%07.3f,", data_array[i].observer_filter_status);
+				//fputs(entry, fp);
+
+				// data valid flags
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.observer_time_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.observer_position_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.observer_velocity_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.observer_orientation_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.observer_position_standard_deviation_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.observer_orientation_standard_deviation_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.observer_depth_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.age_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.range_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.azimuth_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.elevation_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.observer_position_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.corrected_position_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.ned_position_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.geodetic_position_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.range_standard_deviation_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.azimuth_standard_deviation_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.elevation_standard_deviation_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.position_standard_deviation_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.depth_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.signal_level_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.signal_to_noise_ratio_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.signal_correlation_ratio_valid);
+				fputs(entry, fp);
+				sprintf(entry, "%1d,", data_array[i].data_valid.b.signal_correlation_interference_valid);
+				fputs(entry, fp);
+				// end valid flags
+				sprintf(entry, "%09d,", data_array[i].observer_unix_time_seconds);
+				fputs(entry, fp);
+				sprintf(entry, "%09d,", data_array[i].observer_microseconds);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].observer_latitude);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].observer_longitude);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].observer_height);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].observer_velocity[0]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].observer_velocity[1]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].observer_velocity[2]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].observer_orientation[0]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].observer_orientation[1]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].observer_orientation[2]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,,", data_array[i].observer_position_standard_deviation[0]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].observer_position_standard_deviation[1]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].observer_position_standard_deviation[2]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].observer_orientation_standard_deviation[0]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].observer_orientation_standard_deviation[1]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].observer_orientation_standard_deviation[2]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].observer_depth);
+				fputs(entry, fp);
+				sprintf(entry, "%09d,", data_array[i].age_microseconds);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].range);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].azimuth);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].elevation);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].raw_position[0]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].raw_position[1]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].raw_position[2]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].corrected_position[0]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].corrected_position[1]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].corrected_position[2]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].ned_position[0]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].ned_position[1]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].ned_position[2]);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].latitude);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].longitude);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].height);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].range_standard_deviation);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].azimuth_standard_deviation);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].elevation_standard_deviation);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].latitude_standard_deviation);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].longitude_standard_deviation);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].height_standard_deviation);
+				fputs(entry, fp);
+				sprintf(entry, "%07.3f,", data_array[i].depth);
+				fputs(entry, fp);
+				sprintf(entry, "%04d,", data_array[i].signal_level);
+				fputs(entry, fp);
+				sprintf(entry, "%04d,", data_array[i].signal_to_noise_ratio);
+				fputs(entry, fp);
+				sprintf(entry, "%04d,", data_array[i].signal_correlation_ratio);
+				fputs(entry, fp);
+				sprintf(entry, "%04d\n", data_array[i].signal_correlation_interference);
 				fputs(entry, fp);
 			}
 		}

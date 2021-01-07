@@ -1,5 +1,4 @@
 
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -65,8 +64,8 @@ int main(int argc, char *argv[])
 	an_decoder_initialise(&an_decoder);
 	subsonus_track_packet_t subsonus_track_packet;
 
-	// data entry array
-	struct data_entry data_array[MAX_DATA_ENTRIES];
+	// make new array of remote track packets
+	subsonus_track_packet_t track_packets[MAX_DATA_ENTRIES];
 	int data_array_index = 0;
 
 	// serial file descriptor attributes
@@ -141,20 +140,30 @@ int main(int argc, char *argv[])
 						/* this allows easy access to all the different values             */
 						if(decode_subsonus_track_packet(&subsonus_track_packet, an_packet) == 0)
 						{
-							printf("Remote Track Packet:\n");
-							printf("\tLatitude = %f, Longitude = %f, Height = %f\n", subsonus_track_packet.latitude * RADIANS_TO_DEGREES, subsonus_track_packet.longitude * RADIANS_TO_DEGREES, subsonus_track_packet.height);
-							printf("\tRange = %f m, Azimuth = %f deg, Elevation = %f deg\n", subsonus_track_packet.range, subsonus_track_packet.azimuth * RADIANS_TO_DEGREES, subsonus_track_packet.elevation * RADIANS_TO_DEGREES);
-							printf("\tX raw = %f m, Y raw = %f m, Z raw = %f m\n", subsonus_track_packet.raw_position[0], subsonus_track_packet.raw_position[1], subsonus_track_packet.raw_position[2]);
-							printf("\tX corrected = %f m, Y corrected = %f m, Z corrected = %f m\n", subsonus_track_packet.corrected_position[0], subsonus_track_packet.corrected_position[1], subsonus_track_packet.corrected_position[2]);
-							printf("\tDepth: %f\n", subsonus_track_packet.depth);
-							
-							// now save data into array if there is space for it. 
-							if (data_array_index < MAX_DATA_ENTRIES){
-								copy_data_entry(&subsonus_track_packet, &data_array[data_array_index]);
-								++data_array_index;
+							// if this is in fact a track packet, determine if the fields are valid
+							if ((subsonus_track_packet.data_valid.b.age_valid != 1) ||
+								(subsonus_track_packet.data_valid.b.range_valid != 1) ||
+								(subsonus_track_packet.data_valid.b.azimuth_valid != 1) ||
+								(subsonus_track_packet.data_valid.b.elevation_valid != 1) ||
+								(subsonus_track_packet.data_valid.b.raw_position_valid != 1) ||
+								(subsonus_track_packet.data_valid.b.corrected_position_valid != 1)) {
+								printf("Invalid packet data, ignoring.\n");
 							} else {
-								printf("Cannot save any more data, saving existing data.\n");
-								STOP = true;
+								// fields are valid, display and save
+								printf("Remote Track Packet:\n");
+								printf("\tLatitude = %f, Longitude = %f, Height = %f\n", subsonus_track_packet.latitude * RADIANS_TO_DEGREES, subsonus_track_packet.longitude * RADIANS_TO_DEGREES, subsonus_track_packet.height);
+								printf("\tRange = %f m, Azimuth = %f deg, Elevation = %f deg\n", subsonus_track_packet.range, subsonus_track_packet.azimuth * RADIANS_TO_DEGREES, subsonus_track_packet.elevation * RADIANS_TO_DEGREES);
+								printf("\tX raw = %f m, Y raw = %f m, Z raw = %f m\n", subsonus_track_packet.raw_position[0], subsonus_track_packet.raw_position[1], subsonus_track_packet.raw_position[2]);
+								printf("\tX corrected = %f m, Y corrected = %f m, Z corrected = %f m\n", subsonus_track_packet.corrected_position[0], subsonus_track_packet.corrected_position[1], subsonus_track_packet.corrected_position[2]);
+								printf("\tDepth: %f\n", subsonus_track_packet.depth);
+								
+								// now save data into array if there is space for it. 
+								if (data_array_index < MAX_DATA_ENTRIES){
+									copy_packet(&subsonus_track_packet, &track_packets[data_array_index++]);
+								} else {
+									printf("Cannot save any more data, saving existing data.\n");
+									STOP = true;
+								}
 							}
 						}
 					}
@@ -188,8 +197,13 @@ int main(int argc, char *argv[])
 
 	// close the socket 
     close(tcp_socket); 
-	printf("Saving data and exiting program...\n");
-	write_output_file(data_array, data_array_index);
-
+	printf("Would you like to save data [y/n]? : ");
+	if (getchar() == 'y'){
+		printf("Saving data and exiting program...\n");
+		write_output_file(track_packets, data_array_index);
+	} else {
+		printf("Discarding data and exiting.\n");
+	}
+	
 	return EXIT_SUCCESS;
 }

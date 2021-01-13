@@ -150,13 +150,17 @@ int main(int argc, char *argv[])
 								printf("Invalid packet data, ignoring.\n");
 							} else {
 								// fields are valid, display and save
-								printf("Remote Track Packet:\n");
-								printf("\tLatitude = %f, Longitude = %f, Height = %f\n", subsonus_track_packet.latitude * RADIANS_TO_DEGREES, subsonus_track_packet.longitude * RADIANS_TO_DEGREES, subsonus_track_packet.height);
-								printf("\tRange = %f m, Azimuth = %f deg, Elevation = %f deg\n", subsonus_track_packet.range, subsonus_track_packet.azimuth * RADIANS_TO_DEGREES, subsonus_track_packet.elevation * RADIANS_TO_DEGREES);
-								printf("\tX raw = %f m, Y raw = %f m, Z raw = %f m\n", subsonus_track_packet.raw_position[0], subsonus_track_packet.raw_position[1], subsonus_track_packet.raw_position[2]);
-								printf("\tX corrected = %f m, Y corrected = %f m, Z corrected = %f m\n", subsonus_track_packet.corrected_position[0], subsonus_track_packet.corrected_position[1], subsonus_track_packet.corrected_position[2]);
-								printf("\tDepth: %f\n", subsonus_track_packet.depth);
-								
+								time_t temp_t = time(NULL);
+								struct tm *ptm = localtime(&temp_t);
+								printf("Remote Track Packet -> System Time: %02d:%02d:%02d,\n",ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
+								temp_t = (time_t) subsonus_track_packet.observer_unix_time_seconds;
+								ptm = localtime(&temp_t);
+								printf("\tSubsonus Timestamp: %02d:%02d:%02d\n",ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
+								printf("\tLocal Heading: %f deg, Local Pitch: %f deg, Local Roll: %f deg\n", subsonus_track_packet.observer_orientation[2] * RADIANS_TO_DEGREES, subsonus_track_packet.observer_orientation[1] * RADIANS_TO_DEGREES, subsonus_track_packet.observer_orientation[0] * RADIANS_TO_DEGREES);
+								printf("\tLocal Depth: %f m, Remote Depth: %f m\n", subsonus_track_packet.observer_depth, subsonus_track_packet.depth);
+								printf("\tRemote Range: %f m, Remote Azimuth: %f deg, Remote Elevation: %f deg\n", subsonus_track_packet.range, subsonus_track_packet.azimuth * RADIANS_TO_DEGREES, subsonus_track_packet.elevation * RADIANS_TO_DEGREES);
+								printf("\tSignal Level: %f dB, SNR: %f dB\n", subsonus_track_packet.signal_level, subsonus_track_packet.signal_to_noise_ratio);
+
 								// now save data into array if there is space for it. 
 								if (data_array_index < MAX_DATA_ENTRIES){
 									copy_packet(&subsonus_track_packet, &track_packets[data_array_index++]);

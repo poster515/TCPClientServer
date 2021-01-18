@@ -6,7 +6,7 @@
 .vs
 *.csv
 *.json
-*.exe
+# *.exe
 
 # ignore the compiled binary. 
 TCP_client_simple

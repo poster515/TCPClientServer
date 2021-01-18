@@ -1,14 +1,35 @@
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+#ifndef UTILS_C
+#define UTILS_C
+
+#include <stdint.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <time.h>
+#ifdef _WIN64
+// #include <termio.h>
+#include <winsock2.h>
+#include <windows.h>
+#include <ws2tcpip.h>
+#else
 #include <termios.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#endif
 #include <fcntl.h>
 #include <errno.h>
 #include "./lib/an_packet_protocol.h"
 #include "./lib/subsonus_packets.h"
+
+#ifndef M_PI
+#define M_PI (3.14159265358979323846)
+#endif
+
 #define MAX_DATA_ENTRIES 1000
 #define RADIANS_TO_DEGREES (180.0/M_PI)
 
@@ -35,6 +56,7 @@ void read_last_entry(struct data_entry *data_array){
 	printf("\tX corrected = %f m, Y corrected = %f m, Z corrected = %f m\n", data_array->remote_corrected_position[0],data_array->remote_corrected_position[1],data_array->remote_corrected_position[2]);
 }
 
+#ifndef _WIN32
 int open_serial(struct termios *tty_ptr){
 	// set termios settings, and return FD if successful
 	
@@ -77,6 +99,7 @@ int open_serial(struct termios *tty_ptr){
 		return serial_fd;
 	}
 }
+#endif
 
 int an_packet_transmit(an_packet_t *an_packet, int * sockfd)
 {
@@ -118,7 +141,11 @@ void flush_connection(int tcp_socket)
 		select(tcp_socket + 1, &readfds, NULL, NULL, &t);
 		if(FD_ISSET(tcp_socket, &readfds))
 		{
+			#ifndef _WIN32
 			flush_length = recv(tcp_socket, buf, sizeof(buf), 0);
+			#else
+			flush_length = read(tcp_socket, (char*)&buf, sizeof(buf));
+			#endif
 			if(flush_length < 100)
 			{
 				break;
@@ -367,3 +394,9 @@ void set_network_options(int * sockfd)
 
 	an_packet_free(&an_packet);
 }
+
+#endif // define UTILS_C
+
+#ifdef __cplusplus
+}
+#endif

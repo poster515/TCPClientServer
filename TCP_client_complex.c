@@ -1,5 +1,3 @@
-
-#include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -11,14 +9,21 @@
 #define M_PI (3.14159265358979323846)
 #endif
 
+#ifdef _WIN64
+#include <winsock2.h>
+#include <windows.h>
+#include <ws2tcpip.h>
+#else
+#include <stdlib.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#endif
+
 #include <errno.h>
 #include <signal.h>
 #include <stdbool.h>
 #include <fcntl.h>
-#include <termios.h>
 #include "utils.c"
 
 #define RADIANS_TO_DEGREES (180.0/M_PI)
@@ -123,7 +128,11 @@ int main(int argc, char *argv[])
 		if(FD_ISSET(tcp_socket, &readfds))
 		{
 			// printf("TCP socket is ready to read...\n");
+			#ifndef _WIN32
 			bytes_received = recv(tcp_socket, an_decoder_pointer(&an_decoder), an_decoder_size(&an_decoder), MSG_DONTWAIT);
+			#else
+			bytes_received = recv(tcp_socket, (char*) an_decoder_pointer(&an_decoder), an_decoder_size(&an_decoder), 0);
+			#endif
 			// printf("Received %d new bytes from connection, decoding...\n", bytes_received);
 			if(bytes_received > 0)
 			{
@@ -159,7 +168,7 @@ int main(int argc, char *argv[])
 								printf("\tLocal Heading: %f deg, Local Pitch: %f deg, Local Roll: %f deg\n", subsonus_track_packet.observer_orientation[2] * RADIANS_TO_DEGREES, subsonus_track_packet.observer_orientation[1] * RADIANS_TO_DEGREES, subsonus_track_packet.observer_orientation[0] * RADIANS_TO_DEGREES);
 								printf("\tLocal Depth: %f m, Remote Depth: %f m\n", subsonus_track_packet.observer_depth, subsonus_track_packet.depth);
 								printf("\tRemote Range: %f m, Remote Azimuth: %f deg, Remote Elevation: %f deg\n", subsonus_track_packet.range, subsonus_track_packet.azimuth * RADIANS_TO_DEGREES, subsonus_track_packet.elevation * RADIANS_TO_DEGREES);
-								printf("\tSignal Level: %f dB, SNR: %f dB\n", subsonus_track_packet.signal_level, subsonus_track_packet.signal_to_noise_ratio);
+								printf("\tSignal Level: %d dB, SNR: %d dB\n", subsonus_track_packet.signal_level, subsonus_track_packet.signal_to_noise_ratio);
 
 								// now save data into array if there is space for it. 
 								if (data_array_index < MAX_DATA_ENTRIES){

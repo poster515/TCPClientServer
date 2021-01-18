@@ -32,6 +32,13 @@ extern "C"
 {
 #endif
 
+#ifndef AN_PACKET_PROTOCOL_H
+#define AN_PACKET_PROTOCOL_H
+
+#ifdef _WIN64
+#include <stdint.h>
+#endif
+
 #define AN_PACKET_HEADER_SIZE 5
 #define AN_MAXIMUM_PACKET_SIZE 255
 #define AN_DECODE_BUFFER_SIZE 2*(AN_MAXIMUM_PACKET_SIZE + AN_PACKET_HEADER_SIZE)
@@ -89,6 +96,8 @@ an_packet_t *an_packet_decode_dynamic(an_decoder_t *an_decoder);
 void an_decoder_initialise(an_decoder_t *an_decoder);
 uint8_t an_packet_decode(an_decoder_t *an_decoder, an_packet_t *an_packet);
 void an_packet_encode(an_packet_t *an_packet);
+
+#endif // define AN_PACKET_PROTOCOL_H
 
 #ifdef __cplusplus
 }

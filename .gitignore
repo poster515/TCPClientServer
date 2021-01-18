@@ -2,9 +2,11 @@
 !*.*
 !*.h
 !*.c
-#*.txt
+*.txt
 .vs
 *.csv
+*.json
+*.exe
 
 # ignore the compiled binary. 
 TCP_client_simple

@@ -13,6 +13,9 @@
 #include <winsock2.h>
 #include <windows.h>
 #include <ws2tcpip.h>
+
+#pragma comment(lib, "Ws2_32.lib")
+
 #else
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -80,6 +83,15 @@ int main(int argc, char *argv[])
 	//if (serial_fd < 0){
 	//	printf("Error opening serial port.\n");
 	//}
+
+	#ifdef _WIN64
+	WSADATA wsaData;
+	int iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
+	if (iResult != 0) {
+		printf("WSAStartup failed: %d\n", iResult);
+		return 1;
+	}
+	#endif
 
 	// Open TCP socket
 	int tcp_socket;
@@ -218,6 +230,10 @@ int main(int argc, char *argv[])
 	} else {
 		printf("Discarding data and exiting.\n");
 	}
+
+	#ifdef _WIN64
+	WSACleanup();
+	#endif
 	
 	return EXIT_SUCCESS;
 }

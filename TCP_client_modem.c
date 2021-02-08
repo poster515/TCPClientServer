@@ -1,17 +1,26 @@
 // #include <cstdio>
-#include <netinet/in.h> 
-#include <netdb.h> 
 #include <stdio.h> 
 #include <stdlib.h> 
 #include <string.h> 
-#include <sys/socket.h> 
 #include <unistd.h>
-#include <arpa/inet.h>
 #include <errno.h>
 #include <stdbool.h>
 #include <signal.h>
-// #include "./lib/an_packet_protocol.h"
-// #include "./lib/subsonus_packets.h"
+
+#ifdef _WIN64
+#include <winsock2.h>
+#include <windows.h>
+#include <ws2tcpip.h>
+
+// #pragma comment(lib, "Ws2_32.lib")
+
+#else
+#include <stdlib.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#endif
+
 #ifndef M_PI
 #define M_PI (3.14159265358979323846)
 #endif
@@ -20,6 +29,9 @@
 #define MAX 255
 
 static volatile bool STOP = false;
+
+// TO COMPILE:
+// g++ -Wall .\TCP_client_modem.c -o TCP_client_modem.exe -O1 -lws2_32
 
 // User enters a message to send to server. 
 void func(int sockfd, bool send, bool recv) 
@@ -41,7 +53,7 @@ void func(int sockfd, bool send, bool recv)
         if (send) {
             // grab some data to send. 
             // will need to update this to send Inunktun data control packets.
-            bzero(buff, sizeof(buff)); 
+            memset(buff, 0, sizeof(buff)); 
             printf("Enter the string : "); 
             n_bytes = 0;
             while ((buff[n++] = getchar()) != '\n');
@@ -56,7 +68,7 @@ void func(int sockfd, bool send, bool recv)
         
         if (recv) {
             // now check if we can read anything from the server.
-            bzero(buff, sizeof(buff)); 
+            memset(buff, 0, sizeof(buff)); 
             FD_ZERO(&readfds);
             FD_SET(sockfd, &readfds);
             select(sockfd + 1, &readfds, NULL, NULL, &t);
@@ -86,7 +98,7 @@ void sigintHandler(int signum){
 int main(int argc, char *argv[]) 
 { 
     if((argc < 4) || (argc > 5)) {
-		printf("Usage: TCP_client_simple [IP_addr] [port] [-r] [-s]\n");
+		printf("Usage: TCP_client_modem [IP_addr] [port] [-r] [-s]\n");
         printf("Use '-r' to enable receiving data.\n");
         printf("Use '-s' to enable sending data.\n");
         printf("Must use one or both of '-s' and '-r'.\n");
@@ -129,6 +141,16 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    // need to do this for Windows OS. 
+    #ifdef _WIN64
+	WSADATA wsaData;
+	int iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
+	if (iResult != 0) {
+		printf("WSAStartup failed: %d\n", iResult);
+		return 1;
+	}
+	#endif
+
     // socket create and verification 
     sockfd = socket(AF_INET, SOCK_STREAM, 0); 
     if (sockfd == -1) { 
@@ -138,7 +160,7 @@ int main(int argc, char *argv[])
     else
         printf("Socket successfully created...\n"); 
 
-    bzero(&servaddr, sizeof(servaddr)); 
+    memset(&servaddr, 0, sizeof(servaddr)); 
 
     struct hostent *server_s;
     server_s = gethostbyname(server_c);
@@ -167,4 +189,10 @@ int main(int argc, char *argv[])
   
     // close the socket 
     close(sockfd); 
+
+    #ifdef _WIN64
+	WSACleanup();
+	#endif
+
+    return EXIT_SUCCESS;
 }

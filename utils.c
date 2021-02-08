@@ -191,6 +191,8 @@ void write_output_file(subsonus_track_packet_t *data_array, const int index){
 			fputs("remote_corrected_x,", fp);
 			fputs("remote_corrected_y,", fp);
 			fputs("remote_corrected_z,", fp);
+			fputs("signal_level,", fp);
+			fputs("signal_to_noise_ratio,", fp);
 			fputs("device_address,", fp);
 			//fputs("tracking_status,", fp);
 			//fputs("observer_system_status,", fp);
@@ -248,8 +250,7 @@ void write_output_file(subsonus_track_packet_t *data_array, const int index){
 			fputs("remote_longitude_std_dev,", fp);
 			fputs("remote_height_std_dev,", fp);
 			fputs("remote_depth,", fp);
-			fputs("signal_level,", fp);
-			fputs("signal_to_noise_ratio,", fp);
+			
 			fputs("signal_correlation_ratio,", fp); //70
 			fputs("signal_correlation_interference", fp);
 
@@ -271,6 +272,8 @@ void write_output_file(subsonus_track_packet_t *data_array, const int index){
 				fprintf(fp, "%09.3f,", data_array[i].corrected_position[0]);
 				fprintf(fp, "%09.3f,", data_array[i].corrected_position[1]);
 				fprintf(fp, "%09.3f,", data_array[i].corrected_position[2]);
+				fprintf(fp, "%04d,", data_array[i].signal_level);
+				fprintf(fp, "%04d,", data_array[i].signal_to_noise_ratio);
 				fprintf(fp, "%07d,", data_array[i].device_address);
 				//fprintf(fp, "%09.3f,", data_array[i].tracking_status);
 				//fprintf(fp, "%09.3f,", data_array[i].observer_system_status);
@@ -331,8 +334,6 @@ void write_output_file(subsonus_track_packet_t *data_array, const int index){
 				fprintf(fp, "%09.3f,", data_array[i].longitude_standard_deviation * RADIANS_TO_DEGREES);
 				fprintf(fp, "%09.3f,", data_array[i].height_standard_deviation);
 				fprintf(fp, "%09.3f,", data_array[i].depth);
-				fprintf(fp, "%04d,", data_array[i].signal_level);
-				fprintf(fp, "%04d,", data_array[i].signal_to_noise_ratio);
 				fprintf(fp, "%04d,", data_array[i].signal_correlation_ratio);
 				fprintf(fp, "%04d\n", data_array[i].signal_correlation_interference);
 			}

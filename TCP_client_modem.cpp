@@ -6,6 +6,9 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <signal.h>
+#include <errno.h>
+#include <cstring>
+#include <iostream>
 
 #ifdef _WIN64
 #include <winsock2.h>
@@ -31,11 +34,13 @@
 static volatile bool STOP = false;
 
 // TO COMPILE:
-// g++ -Wall .\TCP_client_modem.c -o TCP_client_modem.exe -O1 -lws2_32
+// g++ -Wall .\TCP_client_modem.cpp -o TCP_client_modem.exe -O1 -lws2_32
 
 // User enters a message to send to server. 
-void func(int sockfd, bool send, bool recv) 
+inline void func(int &sockfd, bool client_send, bool client_recv) 
 { 
+    printf("Socket number within function: %d\n", sockfd);
+
     // requires that sockfd has already made a remote connection 
     char buff[MAX]; 
     int n = 0; // index for buff 
@@ -50,23 +55,31 @@ void func(int sockfd, bool send, bool recv)
 
     while(STOP == false)
 	{
-        if (send) {
-            // grab some data to send. 
-            // will need to update this to send Inunktun data control packets.
+        if (client_send) {
+            // grab some data to send.
             memset(buff, 0, sizeof(buff)); 
-            printf("Enter the string : "); 
+            n = 0;
             n_bytes = 0;
-            while ((buff[n++] = getchar()) != '\n');
+            printf("Enter your command: "); 
+            do {
+                buff[n] = getchar();
+            } while (!STOP and buff[n++] != '\n');
+            if (STOP) break;
+            printf("Message to send: %s\n", &buff[0]);
             FD_ZERO(&writefds);
             FD_SET(sockfd, &writefds);
             select(sockfd + 1, NULL, &writefds, NULL, &t);
             if(FD_ISSET(sockfd, &writefds)){
-                n_bytes = write(sockfd, buff, n); // only write n bytes over pipe
-                printf("Wrote %d bytes to server.\n", n_bytes);
+                n_bytes = send(sockfd, buff, n, 0);
+                if (n_bytes > 0){
+                    printf("Wrote %d bytes to server.\n", n);
+                } else {
+                    printf("ERROR: %s. sock fd: %d\n", std::strerror(errno), sockfd);
+                }
             }
         } 
         
-        if (recv) {
+        if (client_recv) {
             // now check if we can read anything from the server.
             memset(buff, 0, sizeof(buff)); 
             FD_ZERO(&readfds);
@@ -74,7 +87,7 @@ void func(int sockfd, bool send, bool recv)
             select(sockfd + 1, &readfds, NULL, NULL, &t);
             if(FD_ISSET(sockfd, &readfds))
             {
-                n_bytes = read(sockfd, buff, sizeof(buff));
+                n_bytes = recv(sockfd, buff, sizeof(buff), 0);
                 printf("Received %d bytes from server.\n", n_bytes);
                 printf("Data from server: %s\n", buff); 
             }
@@ -90,9 +103,7 @@ void func(int sockfd, bool send, bool recv)
 
 void sigintHandler(int signum){
 	printf("\nCaught SIGINT, exiting program...\n");
-	// write flag indicating that we should stop 
 	STOP = true;
-	//signal(SIGINT, sigintHandler);
 }
   
 int main(int argc, char *argv[]) 
@@ -160,8 +171,6 @@ int main(int argc, char *argv[])
     else
         printf("Socket successfully created...\n"); 
 
-    memset(&servaddr, 0, sizeof(servaddr)); 
-
     struct hostent *server_s;
     server_s = gethostbyname(server_c);
 	if(server_s == NULL)
@@ -185,12 +194,15 @@ int main(int argc, char *argv[])
         printf("Connected to the server...\n"); 
   
     // function for chat 
+    printf("Socket number before function: %d\n", sockfd);
     func(sockfd, send, recv); 
   
     // close the socket 
+    printf("Closing socket...\n"); 
     close(sockfd); 
 
     #ifdef _WIN64
+    printf("Performing Windows cleanup...\n"); 
 	WSACleanup();
 	#endif
 

@@ -71,6 +71,7 @@ int main(int argc, char *argv[])
 	an_packet_t *an_packet;
 	an_decoder_initialise(&an_decoder);
 	subsonus_track_packet_t subsonus_track_packet;
+	subsonus_system_state_packet_t subsonus_state_packet;
 
 	// make new array of remote track packets
 	subsonus_track_packet_t track_packets[MAX_DATA_ENTRIES];
@@ -190,7 +191,24 @@ int main(int argc, char *argv[])
 									STOP = true;
 								}
 							}
+						} else if(decode_subsonus_system_state_packet(&subsonus_state_packet, an_packet) == 0){
+							// then this is a system state packet, containing some local telemetry data. 
+							// if this is in fact a track packet, determine if the fields are valid
+							if (subsonus_state_packet.system_status.r > 0) {
+								printf("Invalid packet data, ignoring.\n");
+							} else {
+								// fields are valid, display and save
+								time_t temp_t = time(NULL);
+								struct tm *ptm = localtime(&temp_t);
+								printf("Remote Track Packet -> System Time: %02d:%02d:%02d,\n",ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
+								temp_t = (time_t) subsonus_state_packet.unix_time_seconds;
+								ptm = localtime(&temp_t);
+								printf("\tSubsonus Timestamp: %02d:%02d:%02d\n",ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
+								printf("\tLocal Heading: %f deg, Local Pitch: %f deg, Local Roll: %f deg\n", subsonus_state_packet.orientation[2] * RADIANS_TO_DEGREES, subsonus_state_packet.orientation[1] * RADIANS_TO_DEGREES, subsonus_state_packet.orientation[0] * RADIANS_TO_DEGREES);
+
+							}
 						}
+
 					}
 
 					/* Ensure that you free the an_packet when your done with it or you will leak memory */

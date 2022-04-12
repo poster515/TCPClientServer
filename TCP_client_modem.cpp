@@ -6,6 +6,9 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <signal.h>
+#include <errno.h>
+#include <cstring>
+#include <iostream>
 
 #ifdef _WIN64
 #include <winsock2.h>
@@ -31,10 +34,10 @@
 static volatile bool STOP = false;
 
 // TO COMPILE:
-// g++ -Wall .\TCP_client_modem.c -o TCP_client_modem.exe -O1 -lws2_32
+// g++ -Wall .\TCP_client_modem.cpp -o TCP_client_modem.exe -O1 -lws2_32
 
 // User enters a message to send to server. 
-void func(int sockfd, bool send, bool recv) 
+void func(int &sockfd, bool send, bool recv) 
 { 
     // requires that sockfd has already made a remote connection 
     char buff[MAX]; 
@@ -51,18 +54,23 @@ void func(int sockfd, bool send, bool recv)
     while(STOP == false)
 	{
         if (send) {
-            // grab some data to send. 
-            // will need to update this to send Inunktun data control packets.
+            // grab some data to send.
             memset(buff, 0, sizeof(buff)); 
-            printf("Enter the string : "); 
+            n = 0;
             n_bytes = 0;
+            printf("Enter your command: "); 
             while ((buff[n++] = getchar()) != '\n');
+            printf("Message to send: %s\n", &buff[0]);
             FD_ZERO(&writefds);
             FD_SET(sockfd, &writefds);
             select(sockfd + 1, NULL, &writefds, NULL, &t);
             if(FD_ISSET(sockfd, &writefds)){
                 n_bytes = write(sockfd, buff, n); // only write n bytes over pipe
-                printf("Wrote %d bytes to server.\n", n_bytes);
+                if (n_bytes > 0){
+                    printf("Wrote %d bytes to server.\n", n_bytes);
+                } else {
+                    printf("ERROR: %s\n", std::strerror(errno));
+                }
             }
         } 
         
@@ -90,9 +98,7 @@ void func(int sockfd, bool send, bool recv)
 
 void sigintHandler(int signum){
 	printf("\nCaught SIGINT, exiting program...\n");
-	// write flag indicating that we should stop 
 	STOP = true;
-	//signal(SIGINT, sigintHandler);
 }
   
 int main(int argc, char *argv[]) 
@@ -160,8 +166,6 @@ int main(int argc, char *argv[])
     else
         printf("Socket successfully created...\n"); 
 
-    memset(&servaddr, 0, sizeof(servaddr)); 
-
     struct hostent *server_s;
     server_s = gethostbyname(server_c);
 	if(server_s == NULL)
@@ -188,9 +192,11 @@ int main(int argc, char *argv[])
     func(sockfd, send, recv); 
   
     // close the socket 
+    printf("Closing socket...\n"); 
     close(sockfd); 
 
     #ifdef _WIN64
+    printf("Performing Windows cleanup...\n"); 
 	WSACleanup();
 	#endif
 

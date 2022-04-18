@@ -6,7 +6,6 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <signal.h>
-#include <errno.h>
 #include <cstring>
 #include <iostream>
 
@@ -14,9 +13,6 @@
 #include <winsock2.h>
 #include <windows.h>
 #include <ws2tcpip.h>
-
-// #pragma comment(lib, "Ws2_32.lib")
-
 #else
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -70,7 +66,8 @@ inline void func(int &sockfd, bool client_send, bool client_recv)
             FD_SET(sockfd, &writefds);
             select(sockfd + 1, NULL, &writefds, NULL, &t);
             if(FD_ISSET(sockfd, &writefds)){
-                n_bytes = send(sockfd, buff, n, 0);
+                // strip off the trailing newline char for sending
+                n_bytes = send(sockfd, buff, n-1, 0);
                 if (n_bytes > 0){
                     printf("Wrote %d bytes to server.\n", n);
                 } else {
@@ -186,8 +183,9 @@ int main(int argc, char *argv[])
     servaddr.sin_port = htons(port); 
   
     // connect the client socket to server socket 
-    if (connect(sockfd, (SA*)&servaddr, sizeof(servaddr)) != 0) { 
-        printf("Connection with the server failed with error code: %d.\n", errno); 
+    int rc = connect(sockfd, (SA*)&servaddr, sizeof(servaddr));
+    if (rc != 0) { 
+        printf("Connection with the server failed. Return code: %d, error code: %d.\n", rc, WSAGetLastError()); 
         exit(0); 
     } 
     else
@@ -199,11 +197,13 @@ int main(int argc, char *argv[])
   
     // close the socket 
     printf("Closing socket...\n"); 
-    close(sockfd); 
-
+    
     #ifdef _WIN64
+    if (shutdown(sockfd, SD_BOTH) != 0) printf("Error closing socket: %d", errno);
     printf("Performing Windows cleanup...\n"); 
 	WSACleanup();
+    #else
+    close(sockfd); 
 	#endif
 
     return EXIT_SUCCESS;

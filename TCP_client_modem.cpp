@@ -13,6 +13,7 @@
 #include <winsock2.h>
 #include <windows.h>
 #include <ws2tcpip.h>
+#include <future>
 #else
 #include <stdlib.h>
 #include <sys/socket.h>
@@ -59,8 +60,9 @@ inline void func(int &sockfd, bool client_send, bool client_recv)
             printf("Enter your command: "); 
             do {
                 buff[n] = getchar();
-            } while (!STOP and buff[n++] != '\n');
-            if (STOP) break;
+            } while (buff[n++] != '\n');
+            if ((strncmp(buff, "exit", 4)) == 0) break; 
+
             printf("Message to send: %s\n", &buff[0]);
             FD_ZERO(&writefds);
             FD_SET(sockfd, &writefds);

@@ -32,6 +32,8 @@ static volatile bool STOP = false;
 
 // TO COMPILE:
 // g++ -Wall .\TCP_client_modem.cpp -o TCP_client_modem.exe -O1 -lws2_32
+// to run (for example):
+// .\TCP_client_modem.exe 192.168.0.3 80 -s
 
 // User enters a message to send to server. 
 inline void func(int &sockfd, bool client_send, bool client_recv) 

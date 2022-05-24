@@ -223,6 +223,7 @@ namespace influxdb_cpp {
 
             if(connect(sock, (struct sockaddr*)(&addr), sizeof(addr)) < 0) {
                 closesocket(sock);
+                std::cout << "Error on connect(): " << std::strerror(errno) << "\n";
                 return -3;
             }
 

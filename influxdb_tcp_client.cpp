@@ -3,7 +3,7 @@
 #include <chrono>
 using namespace std;
 
-#define INFLUXDB_TOKEN "R1Y6hMqBoj1gQbxere9V_m_cmt8KBQ02kQCGC-uXbPa7sPDClZPCd8PnXHI8d6lwNdpMDFfqgA31WnaKKSGg9A=="
+#define INFLUXDB_TOKEN "UZ0JnxIbwh8fLSa_0aoCAxDuW_HxVsuwXOUxmqaUkjNeydhBkO8x0Eiblz0oxa7xFBXFrdO4EzjTuicoQe5kPg=="
 
 // Visit https://github.com/orca-zhang/influxdb-c for more test cases
 
@@ -19,13 +19,12 @@ int main(int argc, char const *argv[])
     }
     #endif
 
-    std::string host ("192.168.0.111");
+    std::string host ("192.168.0.4");
     std::string org ("Raytheon"), bkt ("crawler-data");
     influxdb_cpp::server_info si(host, 8086, org, INFLUXDB_TOKEN, bkt);
     // post_http demo with resp[optional]
     using namespace std::chrono;
-    unsigned int ns = duration_cast<nanoseconds>(system_clock::now().time_since_epoch()).count();
-    std::cout << "Timestamp: " << ns << "\n";
+    long long ns = duration_cast<nanoseconds>(system_clock::now().time_since_epoch()).count();
     string resp;
     int ret = influxdb_cpp::builder()
         .meas("test")
@@ -34,7 +33,7 @@ int main(int argc, char const *argv[])
         .field("x", 20)
         .field("y", 40.3, 2)
         .field("b", !!10)
-        .timestamp(1649094233798326016)
+        .timestamp(std::chrono::system_clock::now().time_since_epoch().count())
         .post_http(si, &resp);
 
     cout << ret << endl << resp << endl;
